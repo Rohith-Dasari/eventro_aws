@@ -1,0 +1,45 @@
+package main
+
+import (
+	"context"
+	"eventro_aws/db"
+	showrepository "eventro_aws/internals/repository/show_repository"
+	showservice "eventro_aws/internals/services/show_service"
+	customresponse "eventro_aws/internals/utils"
+	"fmt"
+	"net/http"
+
+	"github.com/aws/aws-lambda-go/events"
+	"github.com/aws/aws-lambda-go/lambda"
+)
+
+var showService showservice.ShowService
+
+func init() {
+	ddb, err := db.InitDB()
+	if err != nil {
+		panic(fmt.Sprintf("Failed to initialize DB: %v", err))
+	}
+
+	showRepo := showrepository.NewShowRepositoryDDB(ddb, "eventro")
+	showService = showservice.NewShowService(showRepo)
+}
+
+func main() {
+	lambda.Start(BrowseShows)
+}
+
+func BrowseShows(ctx context.Context, event events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
+
+	city := event.QueryStringParameters["city"]
+	eventID := event.QueryStringParameters["eventID"]
+	date := event.QueryStringParameters["date"]
+	venueID := event.QueryStringParameters["venueID"]
+
+	shows, err := showService.BrowseShows(ctx, eventID, city, date, venueID)
+	if err != nil {
+		return customresponse.LambdaError(http.StatusInternalServerError, err.Error())
+	}
+
+	return customresponse.SendCustomResponse(http.StatusOK, shows)
+}

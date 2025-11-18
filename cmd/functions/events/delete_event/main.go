@@ -8,7 +8,6 @@ import (
 	eventservice "eventro_aws/internals/services/event_service"
 	customresponse "eventro_aws/internals/utils"
 	"fmt"
-	"net/http"
 
 	"github.com/aws/aws-lambda-go/events"
 	"github.com/aws/aws-lambda-go/lambda"
@@ -38,16 +37,16 @@ func deleteEvent(ctx context.Context, event events.APIGatewayProxyRequest) (even
 
 	}
 
-	eventID := r.PathValue("eventID")
+	eventID := event.QueryStringParameters["eventID"]
 	if eventID == "" {
-		return customresponse.SendCustomResponse(400,"eventID is required in path")
+		return customresponse.SendCustomResponse(400, "eventID is required in path")
 	}
 
-	err = h.EventService.DeleteEvent(r.Context(), eventID)
+	err = eventService.DeleteEvent(ctx, eventID)
 	if err != nil {
-		responses.InternalServerError(w, "Failed to delete event")
-		return
+		return customresponse.SendCustomResponse(500, "Failed to delete event")
+
 	}
 
-	w.WriteHeader(http.StatusNoContent)
+	return customresponse.SendCustomResponse(200, "successfully deleted")
 }

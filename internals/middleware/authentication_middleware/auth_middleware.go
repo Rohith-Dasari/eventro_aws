@@ -21,14 +21,14 @@ func AuthorizedInvoke(fn func(ctx context.Context, req events.APIGatewayProxyReq
 	return func(ctx context.Context, req events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
 		authHeader := req.Headers["Authorization"]
 		if authHeader == "" {
-			return customresponse.LambdaError(401, "Unauthorized"), nil
+			return customresponse.LambdaError(401, "Unauthorized")
 		}
 
 		tokenString := authHeader[len("Bearer "):]
 
 		claims, err := authorisation.ValidateJWT(tokenString)
 		if err != nil {
-			return customresponse.LambdaError(401, "Unauthorized: "+err.Error()), nil
+			return customresponse.LambdaError(401, "Unauthorized: "+err.Error())
 		}
 		authCtx := context.WithValue(ctx, ContextUserIDKey, claims.UserID)
 		authCtx = context.WithValue(authCtx, ContextUserEmailKey, claims.Email)

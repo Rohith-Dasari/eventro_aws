@@ -7,6 +7,7 @@ import (
 	"eventro_aws/internals/models"
 	userrepository "eventro_aws/internals/repository/user_repository"
 	"eventro_aws/internals/services/authorisation"
+	customresponse "eventro_aws/internals/utils"
 	"fmt"
 
 	"github.com/aws/aws-lambda-go/events"
@@ -33,30 +34,18 @@ func Login(ctx context.Context, event events.APIGatewayProxyRequest) (events.API
 
 	var req models.LoginRequest
 	if err := json.Unmarshal([]byte(event.Body), &req); err != nil {
-		body, _ := json.Marshal(map[string]string{"message": "invalid request body"})
-		return events.APIGatewayProxyResponse{
-			StatusCode: 400,
-			Body:       string(body),
-		}, nil
+		return customresponse.LambdaError(400, "invalid request body ")
 	}
-
 	user, err := authService.ValidateLogin(ctx, req.Email, req.Password)
-	message := err.Error()
+
 	if err != nil {
-		body, _ := json.Marshal(map[string]string{"message": message})
-		return events.APIGatewayProxyResponse{
-			StatusCode: 401,
-			Body:       string(body),
-		}, nil
+		message := err.Error()
+		return customresponse.LambdaError(401, message)
 	}
 
 	token, err := authorisation.GenerateJWT(user.UserID, user.Email, string(user.Role))
 	if err != nil {
-		body, _ := json.Marshal(map[string]string{"message": "failed to generate token"})
-		return events.APIGatewayProxyResponse{
-			StatusCode: 500,
-			Body:       string(body),
-		}, nil
+		return customresponse.LambdaError(500, "failed to generate token")
 	}
 
 	res := models.LoginResponse{
@@ -64,8 +53,5 @@ func Login(ctx context.Context, event events.APIGatewayProxyRequest) (events.API
 	}
 
 	body, _ := json.Marshal(res)
-	return events.APIGatewayProxyResponse{
-		StatusCode: 200,
-		Body:       string(body),
-	}, nil
+	return customresponse.SendCustomResponse(200, body)
 }

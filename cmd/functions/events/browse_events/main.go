@@ -2,6 +2,11 @@ package main
 
 import (
 	"context"
+	"encoding/json"
+	"eventro_aws/db"
+	eventrepository "eventro_aws/internals/repository/event_repository"
+	eventservice "eventro_aws/internals/services/event_service"
+	customresponse "eventro_aws/internals/utils"
 	"fmt"
 
 	"github.com/aws/aws-lambda-go/events"
@@ -25,31 +30,22 @@ func main() {
 }
 
 func BrowseEvents(ctx context.Context, event events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
-	isBlockedParam := event.QueryStringParameters["isBlocked"]
+	// isBlockedParam := event.QueryStringParameters["isBlocked"]
+	cityParam := event.QueryStringParameters["city"]
 
-	var isBlocked *bool
-	if isBlockedParam != "" {
-		role, err := authenticationmiddleware.GetUserRole(ctx)
-		if err != nil || role != "Admin" {
-			return customresponse.SendCustomResponse(403, "only admin can access blocked events")
-		}
-		val := isBlockedParam == "true"
-		isBlocked = &val
-	}
-
-	filter := models.EventFilter{
-		EventID:    event.QueryStringParameters("eventID"),
-		Name:       event.QueryStringParameters("eventname"),
-		Category:   event.QueryStringParameters("category"),
-		Location:   event.QueryStringParameters("location"),
-		IsBlocked:  isBlocked,
-		ArtistName: event.QueryStringParameters("artistName"),
-	}
-
-	events, err := eventService.BrowseEvents(ctx, filter)
+	resEvents, err := eventService.BrowseEvents(ctx, cityParam)
 	if err != nil {
-		return customresponse.SendCustomResponse(500, "internal server error")
+		return customresponse.LambdaError(500, "internal server error")
 	}
-	return customresponse.SendCustomResponse(200, events)
+
+	body, err := json.Marshal(resEvents)
+	if err != nil {
+		return customresponse.LambdaError(500, "failed to marshal events")
+	}
+
+	return events.APIGatewayProxyResponse{
+		StatusCode: 200,
+		Body:       string(body),
+	}, nil
 
 }

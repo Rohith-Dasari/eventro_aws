@@ -1,0 +1,40 @@
+package main
+
+import (
+	"context"
+	"eventro_aws/db"
+	artistrepository "eventro_aws/internals/repository/artist_repository"
+	artistservice "eventro_aws/internals/services/artist_service"
+	customresponse "eventro_aws/internals/utils"
+	"fmt"
+	"net/http"
+
+	"github.com/aws/aws-lambda-go/events"
+)
+
+var artistService artistservice.Artistservice
+
+func init() {
+	ddb, err := db.InitDB()
+	if err != nil {
+		panic(fmt.Sprintf("Failed to initialize DB: %v", err))
+	}
+
+	artistRepo := artistrepository.NewArtistRepositoryDDB(ddb, "eventro")
+	artistService = artistservice.NewArtistService(artistRepo)
+}
+
+func BrowseArtists(ctx context.Context, event events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
+	// name := event.QueryStringParameters["name"]
+	artistID := event.QueryStringParameters["artistID"]
+	if artistID != "" {
+		artist, err := artistService.GetArtistByID(ctx, artistID)
+		if err != nil {
+			return customresponse.LambdaError(http.StatusInternalServerError, err.Error())
+
+		}
+		return customresponse.SendCustomResponse(http.StatusOK, artist)
+	} else {
+		return customresponse.LambdaError(http.StatusBadRequest, "missing artistID")
+	}
+}

@@ -22,6 +22,7 @@ type UserDDB struct {
 	Password    string      `dynamodbav:"password"`
 	Role        models.Role `dynamodbav:"role"`
 	IsBlocked   bool        `dynamodbav:"is_blocked"`
+	Venue_ids   []string    `dynamodbav:"venue_ids,omitempty"`
 }
 
 type UserRepositoryDDB struct {
@@ -39,12 +40,18 @@ func (ur UserRepositoryDDB) Create(user *models.User) error {
 	newAttributeKey := "sk"
 	newAttributeValue := &types.AttributeValueMemberS{Value: "DETAILS"}
 	pk := &types.AttributeValueMemberS{Value: "USER#" + user.Email}
+
+	item["venue_ids"] = &types.AttributeValueMemberL{
+		Value: []types.AttributeValue{},
+	}
+
 	item["pk"] = pk
 	item[newAttributeKey] = newAttributeValue
 	fmt.Println(item)
 	if err != nil {
 		return err
 	}
+
 	ctx := context.Background()
 	_, err = ur.db.PutItem(ctx, &dynamodb.PutItemInput{
 		TableName: aws.String(ur.TableName), Item: item,

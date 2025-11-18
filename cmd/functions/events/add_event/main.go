@@ -22,7 +22,8 @@ type CreateEventRequest struct {
 	Description string   `json:"description"`
 	Duration    string   `json:"duration"`
 	Category    string   `json:"category"`
-	Artists     []string `json:"artists"`
+	ArtistIDs   []string `json:"artists_ids"`
+	ArtistNames []string `json:"artist_names,omitempty"`
 }
 
 func init() {
@@ -31,7 +32,7 @@ func init() {
 		panic(fmt.Sprintf("Failed to initialize DB: %v", err))
 	}
 
-	eventRepo := eventrepository.NewEventRepoDDB(ddb, "events")
+	eventRepo := eventrepository.NewEventRepoDDB(ddb, "eventro")
 	eventService = eventservice.NewEventService(eventRepo)
 }
 
@@ -43,18 +44,18 @@ func CreateEvent(ctx context.Context, event events.APIGatewayProxyRequest) (even
 
 	role, err := authenticationmiddleware.GetUserRole(ctx)
 	if err != nil || (role != "Admin" && role != "Host") {
-		return customresponse.SendCustomResponse(403, "Only admin and host authorised")
+		return customresponse.LambdaError(403, "Only admin and host authorised")
 	}
 
 	var req CreateEventRequest
 	if err := json.Unmarshal([]byte(event.Body), &req); err != nil {
-		return customresponse.SendCustomResponse(500, "Internal server error")
+		return customresponse.LambdaError(400, "invalid request body")
 	}
 
-	createdEvent, nil := eventService.CreateNewEvent(ctx, req.Name, req.Description, req.Duration, models.EventCategory(req.Category), req.Artists)
+	createdEvent, nil := eventService.CreateNewEvent(ctx, req.Name, req.Description, req.Duration, models.EventCategory(req.Category), req.ArtistIDs)
 
 	if err != nil {
-		return customresponse.SendCustomResponse(500, "Internal server error")
+		return customresponse.LambdaError(500, "Internal server error")
 	}
 
 	body, _ := json.Marshal(createdEvent)

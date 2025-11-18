@@ -11,7 +11,7 @@ type CustomResponse struct {
 	StatusCode int    `json:"status_code"`
 }
 
-func SendCustomResponse(statusCode int, data string) (events.APIGatewayProxyResponse, error) {
+func SendCustomResponse(statusCode int, data any) (events.APIGatewayProxyResponse, error) {
 	body, _ := json.Marshal(data)
 	return events.APIGatewayProxyResponse{
 		StatusCode: 200,
@@ -20,12 +20,18 @@ func SendCustomResponse(statusCode int, data string) (events.APIGatewayProxyResp
 
 }
 
-func LambdaError(code int, msg string) events.APIGatewayProxyResponse {
-	body, _ := json.Marshal(map[string]string{
+func LambdaError(code int, msg string) (events.APIGatewayProxyResponse, error) {
+	body, err := json.Marshal(map[string]string{
 		"message": msg,
 	})
+	if err != nil {
+		return events.APIGatewayProxyResponse{
+			StatusCode: 500,
+			Body:       "couldn't marshal response",
+		}, err
+	}
 	return events.APIGatewayProxyResponse{
 		StatusCode: code,
 		Body:       string(body),
-	}
+	}, nil
 }

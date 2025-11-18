@@ -13,13 +13,13 @@ const (
 )
 
 type Event struct {
-	ID          string        `gorm:"primaryKey;type:uuid;default:gen_random_uuid()" dynamodbav:"pk"`
-	Name        string        `gorm:"type:text;not null" dynamodbav:"sk"`
-	Description string        `gorm:"type:text" dynamodbav:"description"`
-	HypeMeter   int           `gorm:"default:0"`
-	Duration    string        `gorm:"type:text" dynamodbav:"duration"`
-	Category    EventCategory `gorm:"type:text;not null" dynamodbav:"category"`
-	IsBlocked   bool          `gorm:"default:false" dynamodbav:"is_blocked"`
+	ID          string        `json:"id" dynamodbav:"pk"`
+	Name        string        `json:"name" dynamodbav:"event_name"`
+	Description string        `json:"description" dynamodbav:"description"`
+	Duration    string        `json:"duration" dynamodbav:"duration"`
+	Category    EventCategory `json:"category" dynamodbav:"category"`
+	IsBlocked   bool          `json:"is_blocked" dynamodbav:"is_blocked"`
+	ArtistIDs   []string      `json:"artist_ids,omitempty" dynamodbav:"artist_ids"`
 }
 
 type EventArtist struct {
