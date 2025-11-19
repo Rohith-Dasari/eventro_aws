@@ -28,7 +28,7 @@ func init() {
 }
 
 func main() {
-	lambda.Start(UpdateEvent)
+	lambda.Start(authenticationmiddleware.AuthorizedInvoke(UpdateEvent))
 }
 
 func UpdateEvent(ctx context.Context, event events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {

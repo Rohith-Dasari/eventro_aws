@@ -7,6 +7,7 @@ import (
 	"eventro_aws/internals/models"
 	userrepository "eventro_aws/internals/repository/user_repository"
 	"eventro_aws/internals/services/authorisation"
+	customresponse "eventro_aws/internals/utils"
 	"fmt"
 
 	"github.com/aws/aws-lambda-go/events"
@@ -74,14 +75,9 @@ func Signup(ctx context.Context, event events.APIGatewayProxyRequest) (events.AP
 			Body:       string(body),
 		}, nil
 	}
-
-	res := models.SignupResponse{
+	res := models.LoginResponse{
 		Token: token,
 	}
 
-	body, _ := json.Marshal(res)
-	return events.APIGatewayProxyResponse{
-		StatusCode: 200,
-		Body:       string(body),
-	}, nil
+	return customresponse.SendCustomResponse(200, res)
 }

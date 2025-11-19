@@ -10,6 +10,8 @@ import (
 	eventservice "eventro_aws/internals/services/event_service"
 	customresponse "eventro_aws/internals/utils"
 	"fmt"
+	"net/http"
+	"strings"
 
 	"github.com/aws/aws-lambda-go/events"
 	"github.com/aws/aws-lambda-go/lambda"
@@ -37,13 +39,16 @@ func init() {
 }
 
 func main() {
-	lambda.Start(CreateEvent)
+	lambda.Start(authenticationmiddleware.AuthorizedInvoke(CreateEvent))
 }
 
 func CreateEvent(ctx context.Context, event events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
 
 	role, err := authenticationmiddleware.GetUserRole(ctx)
-	if err != nil || (role != "Admin" && role != "Host") {
+	if err != nil {
+		return customresponse.LambdaError(http.StatusUnauthorized, err.Error())
+	}
+	if strings.ToLower(role) != "admin" && strings.ToLower(role) != "host" {
 		return customresponse.LambdaError(403, "Only admin and host authorised")
 	}
 
@@ -52,16 +57,17 @@ func CreateEvent(ctx context.Context, event events.APIGatewayProxyRequest) (even
 		return customresponse.LambdaError(400, "invalid request body")
 	}
 
-	createdEvent, nil := eventService.CreateNewEvent(ctx, req.Name, req.Description, req.Duration, models.EventCategory(req.Category), req.ArtistIDs)
+	createdEvent, err := eventService.CreateNewEvent(ctx, req.Name, req.Description, req.Duration, models.EventCategory(req.Category), req.ArtistIDs)
 
 	if err != nil {
-		return customresponse.LambdaError(500, "Internal server error")
+		return customresponse.LambdaError(500, err.Error())
 	}
 
-	body, _ := json.Marshal(createdEvent)
-	return events.APIGatewayProxyResponse{
-		StatusCode: 200,
-		Body:       string(body),
-	}, nil
+	return customresponse.SendCustomResponse(200, createdEvent)
 
 }
+
+// type body struct {
+// 	statusCode int
+// 	data       any
+// }

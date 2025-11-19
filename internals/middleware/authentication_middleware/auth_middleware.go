@@ -5,6 +5,7 @@ import (
 	"errors"
 	"eventro_aws/internals/services/authorisation"
 	customresponse "eventro_aws/internals/utils"
+	"strings"
 
 	"github.com/aws/aws-lambda-go/events"
 )
@@ -21,10 +22,18 @@ func AuthorizedInvoke(fn func(ctx context.Context, req events.APIGatewayProxyReq
 	return func(ctx context.Context, req events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
 		authHeader := req.Headers["Authorization"]
 		if authHeader == "" {
-			return customresponse.LambdaError(401, "Unauthorized")
+			authHeader = req.Headers["authorization"]
+		}
+		if authHeader == "" {
+			return customresponse.LambdaError(401, "Unauthorized: missing Authorization header")
 		}
 
-		tokenString := authHeader[len("Bearer "):]
+		parts := strings.SplitN(authHeader, " ", 2)
+		if len(parts) != 2 || !strings.EqualFold(parts[0], "Bearer") {
+			return customresponse.LambdaError(401, "Unauthorized: invalid Authorization header format")
+		}
+
+		tokenString := strings.TrimSpace(parts[1])
 
 		claims, err := authorisation.ValidateJWT(tokenString)
 		if err != nil {

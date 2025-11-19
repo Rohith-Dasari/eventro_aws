@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"eventro_aws/db"
+	authenticationmiddleware "eventro_aws/internals/middleware/authentication_middleware"
 	eventrepository "eventro_aws/internals/repository/event_repository"
 	eventservice "eventro_aws/internals/services/event_service"
 	customresponse "eventro_aws/internals/utils"
@@ -26,7 +27,7 @@ func init() {
 }
 
 func main() {
-	lambda.Start(BrowseEvents)
+	lambda.Start(authenticationmiddleware.AuthorizedInvoke(BrowseEvents))
 }
 
 func BrowseEvents(ctx context.Context, event events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {

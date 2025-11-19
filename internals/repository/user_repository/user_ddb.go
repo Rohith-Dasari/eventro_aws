@@ -6,6 +6,7 @@ import (
 	"eventro_aws/internals/models"
 	"fmt"
 	"log"
+	"strings"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/feature/dynamodb/attributevalue"
@@ -90,6 +91,8 @@ func (ur UserRepositoryDDB) GetByEmail(email string) (*models.User, error) {
 			log.Printf("Couldn't unmarshal response. Here's why: %v\n", err)
 		}
 	}
+
+	user.Email = strings.TrimPrefix("USER#", user.Email)
 
 	return &user, nil
 }

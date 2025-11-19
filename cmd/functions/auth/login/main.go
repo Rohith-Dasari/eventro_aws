@@ -51,7 +51,5 @@ func Login(ctx context.Context, event events.APIGatewayProxyRequest) (events.API
 	res := models.LoginResponse{
 		Token: token,
 	}
-
-	body, _ := json.Marshal(res)
-	return customresponse.SendCustomResponse(200, body)
+	return customresponse.SendCustomResponse(200, res)
 }

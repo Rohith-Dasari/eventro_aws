@@ -102,7 +102,7 @@ func (er *EventRepositoryDDB) GetByID(ctx context.Context, eventID string) (*mod
 				":pk":       &types.AttributeValueMemberS{Value: artistPK},
 				":skPrefix": &types.AttributeValueMemberS{Value: "NAME"},
 			},
-			Limit: aws.Int32(1), // Only NAME item
+			Limit: aws.Int32(1), 
 		})
 		if err != nil || len(artistOut.Items) == 0 {
 			continue
