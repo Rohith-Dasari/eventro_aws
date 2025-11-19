@@ -122,7 +122,7 @@ func (s *VenueService) GetHostVenues(ctx context.Context, hostID string) ([]mode
 	return venueDTO, nil
 
 }
-func (s *VenueService) GetVenuByID(ctx context.Context, venueID string) (*models.VenueResponse, error) {
+func (s *VenueService) GetVenueByID(ctx context.Context, venueID string) (*models.VenueResponse, error) {
 	v, err := s.VenueRepo.GetByID(ctx, venueID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch venues: %w", err)

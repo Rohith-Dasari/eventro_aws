@@ -36,7 +36,7 @@ func init() {
 }
 
 func main() {
-	lambda.Start(CreateVenue)
+	lambda.Start(authenticationmiddleware.AuthorizedInvoke(CreateVenue))
 }
 
 func CreateVenue(ctx context.Context, event events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {

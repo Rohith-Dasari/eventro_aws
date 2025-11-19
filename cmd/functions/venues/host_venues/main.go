@@ -28,7 +28,7 @@ func init() {
 }
 
 func main() {
-	lambda.Start(GetHostVenues)
+	lambda.Start(authenticationmiddleware.AuthorizedInvoke(GetHostVenues))
 }
 
 func GetHostVenues(ctx context.Context, event events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {

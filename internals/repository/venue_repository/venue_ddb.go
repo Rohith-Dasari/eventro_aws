@@ -98,7 +98,8 @@ func (r *VenueRepositoryDDB) GetByID(ctx context.Context, id string) (*models.Ve
 		return nil, fmt.Errorf("unmarshal venue failed: %w", err)
 	}
 
-	venue.ID = id // ensure ID is set
+	venue.ID = id
+	venue.HostID = strings.TrimPrefix(venue.HostID, "HOST#")
 
 	return &venue, nil
 }

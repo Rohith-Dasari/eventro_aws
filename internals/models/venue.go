@@ -2,10 +2,10 @@ package models
 
 type Venue struct {
 	ID        string `gorm:"primaryKey;type:uuid;default:gen_random_uuid()" dynamodbav:"pk"`
-	Name      string `gorm:"type:text;not null" dynamodbav:"name"`
+	Name      string `gorm:"type:text;not null" dynamodbav:"venue_name"`
 	HostID    string `gorm:"type:uuid;not null;index" dynamodbav:"sk"`
-	City      string `gorm:"type:text;not null" dynamodbav:"city"`
-	State     string `gorm:"type:text;not null" dynamodbav:"state"`
+	City      string `gorm:"type:text;not null" dynamodbav:"venue_city"`
+	State     string `gorm:"type:text;not null" dynamodbav:"venue_state"`
 	IsBlocked bool   `gorm:"default:false" dynamodbav:"is_blocked"`
 }
 

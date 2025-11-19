@@ -154,7 +154,6 @@ Resources:
         - DynamoDBCrudPolicy:
             TableName: eventro
 
-
   CreateVenue:
     Type: AWS::Serverless::Function
     Metadata:
@@ -167,6 +166,56 @@ Resources:
           Properties:
             Method: post
             Path: /venues
+            RestApiId: !Ref Api
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: eventro
+  BrowseVenue:
+    Type: AWS::Serverless::Function
+    Metadata:
+      BuildMethod: go1.x
+    Properties:
+      CodeUri: ./cmd/functions/venues/browse_venue
+      Events:
+        ApiEvent:
+          Type: Api
+          Properties:
+            Method: get
+            Path: /venues/{venueID}
+            RestApiId: !Ref Api
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: eventro
+
+  GetVenuesOfHost:
+    Type: AWS::Serverless::Function
+    Metadata:
+      BuildMethod: go1.x
+    Properties:
+      CodeUri: ./cmd/functions/venues/host_venues
+      Events:
+        ApiEvent:
+          Type: Api
+          Properties:
+            Method: get
+            Path: /host/{hostID}/venues
+            RestApiId: !Ref Api
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: eventro
+  
+  UpdateVenue:
+    Type: AWS::Serverless::Function
+    Metadata:
+      BuildMethod: go1.x
+    Properties:
+      CodeUri: ./cmd/functions/venues/update_venue
+      Events:
+        ApiEvent:
+          Type: Api
+          Properties:
+            Method: patch
+            Path: /venues/{venueID}
             RestApiId: !Ref Api
       Policies:
         - DynamoDBCrudPolicy:

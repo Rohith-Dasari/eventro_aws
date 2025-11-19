@@ -27,7 +27,7 @@ func init() {
 }
 
 func main() {
-	lambda.Start(BrowseVenues)
+	lambda.Start(authenticationmiddleware.AuthorizedInvoke(BrowseVenues))
 }
 
 func BrowseVenues(ctx context.Context, event events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
@@ -42,7 +42,7 @@ func BrowseVenues(ctx context.Context, event events.APIGatewayProxyRequest) (eve
 		)
 	}
 
-	venue, err := venueService.GetVenuByID(ctx, venueID)
+	venue, err := venueService.GetVenueByID(ctx, venueID)
 	if err != nil {
 		return customresponse.SendCustomResponse(
 			http.StatusInternalServerError,

@@ -28,7 +28,7 @@ func init() {
 }
 
 func main() {
-	lambda.Start(DeleteVenue)
+	lambda.Start(authenticationmiddleware.AuthorizedInvoke(DeleteVenue))
 }
 
 func DeleteVenue(ctx context.Context, event events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
