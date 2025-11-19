@@ -2,8 +2,10 @@ package showrepository
 
 import (
 	"context"
+
 	"errors"
 	"eventro_aws/internals/models"
+	venuerepository "eventro_aws/internals/repository/venue_repository"
 	"fmt"
 	"strings"
 	"time"
@@ -26,7 +28,7 @@ func NewShowRepositoryDDB(db *dynamodb.Client, tableName string) *ShowRepository
 type ShowDDB struct {
 	PK           string   `dynamodbav:"pk"`
 	SK           string   `dynamodbav:"sk"`
-	City         string   `dynamodbav:"city"`
+	City         string   `dynamodbav:"venue_city"`
 	VenueID      string   `dynamodbav:"venue_id"`
 	EventID      string   `dynamodbav:"event_id"`
 	CreatedAt    string   `dynamodbav:"created_at"`
@@ -36,23 +38,15 @@ type ShowDDB struct {
 	IsBlocked    bool     `dynamodbav:"is_blocked"`
 }
 
-// Create a new show
 func (r *ShowRepositoryDDB) Create(ctx context.Context, show *models.Show) error {
-	if show == nil {
-		return errors.New("show is nil")
-	}
-	if show.Venue.City == "" {
-		return errors.New("venue city is required on show.Venue.City")
-	}
 
-	city := show.Venue.City
 	createdAt := show.CreatedAt.Format(time.RFC3339)
 	showDateTime := show.ShowDate.Format("2006-01-02") + "T" + show.ShowTime
+	venueRepo := venuerepository.NewVenueRepositoryDDB(r.db, r.TableName)
+	venue, _ := venueRepo.GetByID(ctx, show.VenueID)
+	city := venue.City
 
-	// -----------------------------------------
-	// 1) SHOW#<show_id> -> DETAILS
-	// -----------------------------------------
-	showItem := map[string]interface{}{
+	showItem := map[string]any{
 		"pk":             "SHOW#" + show.ID,
 		"sk":             "DETAILS",
 		"city":           city,
@@ -64,6 +58,19 @@ func (r *ShowRepositoryDDB) Create(ctx context.Context, show *models.Show) error
 		"booked_seats":   show.BookedSeats,
 		"is_blocked":     show.IsBlocked,
 	}
+
+	// showItem := ShowDDB{
+	// 	PK:             "SHOW#" + show.ID,
+	// 	SK:             "DETAILS",
+	// 	City:           city,
+	// 	Venue_id:       show.VenueID,
+	// 	event_id:       show.EventID,
+	// 	created_at:     createdAt,
+	// 	price:          show.Price,
+	// 	show_date_time: showDateTime,
+	// 	booked_seats:   show.BookedSeats,
+	// 	is_blocked:     show.IsBlocked,
+	// }
 
 	av1, err := attributevalue.MarshalMap(showItem)
 	if err != nil {
@@ -263,14 +270,14 @@ func (r *ShowRepositoryDDB) ListByEvent(ctx context.Context, eventID, city, date
 		}
 
 		// Parse SK: DATE#<date>#VENUE#<venueID>#SHOW#<showID>
-		parts := strings.Split(row.SK, "#")
+		parts := strings.Split(row.SK, "#Show#")
 		// [DATE, <date>, VENUE, <venueID>, SHOW, <showID>]
 
-		if len(parts) != 6 {
+		if len(parts) != 2 {
 			return nil, fmt.Errorf("invalid show SK format: %s", row.SK)
 		}
 
-		showID := parts[5]
+		showID := parts[1]
 
 		// STEP B – Fetch full SHOW details
 		fullShow, err := r.GetByID(ctx, showID)

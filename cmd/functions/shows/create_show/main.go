@@ -37,7 +37,7 @@ func init() {
 }
 
 func main() {
-	lambda.Start(CreateShow)
+	lambda.Start(authenticationmiddleware.AuthorizedInvoke(CreateShow))
 }
 
 func CreateShow(ctx context.Context, event events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
@@ -48,7 +48,10 @@ func CreateShow(ctx context.Context, event events.APIGatewayProxyRequest) (event
 	}
 
 	role, err := authenticationmiddleware.GetUserRole(ctx)
-	if err != nil || role != "Host" {
+	if err != nil {
+		return customresponse.LambdaError(403, "unable to get role")
+	}
+	if role != "Host" {
 		return customresponse.LambdaError(403, "Only admin and host authorised")
 	}
 

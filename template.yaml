@@ -223,4 +223,19 @@ Resources:
   
   
     
-  
+  CreateShow:
+    Type: AWS::Serverless::Function
+    Metadata:
+      BuildMethod: go1.x
+    Properties:
+      CodeUri: ./cmd/functions/shows/create_show
+      Events:
+        ApiEvent:
+          Type: Api
+          Properties:
+            Method: post
+            Path: /shows
+            RestApiId: !Ref Api
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: eventro
