@@ -44,10 +44,21 @@ func (s *ShowService) UpdateShow(ctx context.Context, showID string, userID stri
 	return nil
 }
 
-func (s *ShowService) BrowseShows(ctx context.Context, eventID, city, date, venueID string) ([]models.ShowDTO, error) {
-	shows, err := s.ShowRepo.ListByEvent(ctx, eventID, city, date, venueID)
+func (s *ShowService) BrowseShows(ctx context.Context, eventID, city, date, venueID, hostID string) ([]models.ShowDTO, error) {
+	shows, err := s.ShowRepo.ListByEvent(ctx, eventID, city, date, venueID, hostID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch shows: %w", err)
+	}
+
+	if hostID != "" {
+		//only keep shows which has shows[i].HostID =hostID
+		filtered := make([]models.ShowDTO, 0, len(shows))
+		for _, show := range shows {
+			if show.HostID == hostID {
+				filtered = append(filtered, show)
+			}
+		}
+		return filtered, nil
 	}
 	return shows, nil
 }
@@ -75,5 +86,3 @@ func (s *ShowService) CreateShow(ctx context.Context, eventID string, venueID st
 
 	return nil
 }
-
-

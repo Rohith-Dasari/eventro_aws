@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"eventro_aws/db"
 	authenticationmiddleware "eventro_aws/internals/middleware/authentication_middleware"
+	corsmiddleware "eventro_aws/internals/middleware/cors_middleware"
 	bookingrepository "eventro_aws/internals/repository/booking_repository"
 	showrepository "eventro_aws/internals/repository/show_repository"
 	bookingservice "eventro_aws/internals/services/booking_service"
@@ -30,7 +31,7 @@ func init() {
 }
 
 func main() {
-	lambda.Start(CreateBooking)
+	lambda.Start(corsmiddleware.WithCORS(authenticationmiddleware.AuthorizedInvoke(CreateBooking)))
 }
 
 type CreateBookingRequest struct {

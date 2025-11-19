@@ -32,10 +32,11 @@ type ShowDDB struct {
 	VenueID      string   `dynamodbav:"venue_id"`
 	EventID      string   `dynamodbav:"event_id"`
 	CreatedAt    string   `dynamodbav:"created_at"`
-	Price        int      `dynamodbav:"price"`
+	Price        float64  `dynamodbav:"price"`
 	ShowDateTime string   `dynamodbav:"show_date_time"`
 	BookedSeats  []string `dynamodbav:"booked_seats"`
 	IsBlocked    bool     `dynamodbav:"is_blocked"`
+	HostID       string   `dynamodbav:"host_id"`
 }
 
 func (r *ShowRepositoryDDB) Create(ctx context.Context, show *models.Show) error {
@@ -57,6 +58,7 @@ func (r *ShowRepositoryDDB) Create(ctx context.Context, show *models.Show) error
 		"show_date_time": showDateTime,
 		"booked_seats":   show.BookedSeats,
 		"is_blocked":     show.IsBlocked,
+		"host_id":        show.HostID,
 	}
 
 	// showItem := ShowDDB{
@@ -189,13 +191,7 @@ func (r *ShowRepositoryDDB) GetByID(ctx context.Context, id string) (*models.Sho
 	}
 
 	// match DDB schema
-	var showDDB struct {
-		VenueID      string   `dynamodbav:"venue_id"`
-		EventID      string   `dynamodbav:"event_id"`
-		Price        float64  `dynamodbav:"price"`
-		ShowDateTime string   `dynamodbav:"show_date_time"`
-		BookedSeats  []string `dynamodbav:"booked_seats"`
-	}
+	var showDDB ShowDDB
 	if err := attributevalue.UnmarshalMap(out.Item, &showDDB); err != nil {
 		return nil, fmt.Errorf("failed to unmarshal show: %w", err)
 	}
@@ -218,15 +214,17 @@ func (r *ShowRepositoryDDB) GetByID(ctx context.Context, id string) (*models.Sho
 	return &models.ShowDTO{
 		ID:          id,
 		EventID:     showDDB.EventID,
-		Price:       showDDB.Price,
+		Price:       float64(showDDB.Price),
 		ShowDate:    date,
 		ShowTime:    timeStr,
 		BookedSeats: showDDB.BookedSeats,
 		Venue:       *venueDTO,
+		IsBlocked:   showDDB.IsBlocked,
+		HostID:      showDDB.HostID,
 	}, nil
 }
 
-func (r *ShowRepositoryDDB) ListByEvent(ctx context.Context, eventID, city, date, venueID string) ([]models.ShowDTO, error) {
+func (r *ShowRepositoryDDB) ListByEvent(ctx context.Context, eventID, city, date, venueID, hostID string) ([]models.ShowDTO, error) {
 	if eventID == "" || city == "" {
 		return nil, errors.New("eventID and city are required")
 	}
@@ -270,7 +268,7 @@ func (r *ShowRepositoryDDB) ListByEvent(ctx context.Context, eventID, city, date
 		}
 
 		// Parse SK: DATE#<date>#VENUE#<venueID>#SHOW#<showID>
-		parts := strings.Split(row.SK, "#Show#")
+		parts := strings.Split(row.SK, "#SHOW#")
 		// [DATE, <date>, VENUE, <venueID>, SHOW, <showID>]
 
 		if len(parts) != 2 {

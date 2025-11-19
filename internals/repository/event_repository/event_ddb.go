@@ -22,6 +22,7 @@ type EventDDB struct {
 	Category    string   `dynamodbav:"category"`
 	IsBlocked   bool     `dynamodbav:"is_blocked"`
 	ArtistIDs   []string `dynamodbav:"artist_ids"`
+	ArtistNames []string `dynamodbav:"artist_names"`
 }
 
 type EventRepositoryDDB struct {
@@ -34,15 +35,49 @@ func NewEventRepoDDB(db *dynamodb.Client, tableName string) *EventRepositoryDDB 
 }
 
 func (er *EventRepositoryDDB) Create(ctx context.Context, event *models.Event) error {
+	var artistNames []string
+
+	// Query each artist to get their names
+	for _, artistID := range event.ArtistIDs {
+		// Query DynamoDB for artist name
+		artistPK := "ARTIST#" + artistID
+		input := &dynamodb.QueryInput{
+			TableName:              aws.String(er.TableName),
+			KeyConditionExpression: aws.String("pk = :pk AND begins_with(sk, :sk)"),
+			ExpressionAttributeValues: map[string]types.AttributeValue{
+				":pk": &types.AttributeValueMemberS{Value: artistPK},
+				":sk": &types.AttributeValueMemberS{Value: "NAME#"},
+			},
+		}
+
+		result, err := er.db.Query(ctx, input)
+		if err != nil {
+			return err // handle error appropriately
+		}
+
+		if len(result.Items) > 0 {
+			// Extract artist name from the result
+			var artistData struct {
+				ArtistName string `dynamodbav:"artist_name"`
+			}
+			err = attributevalue.UnmarshalMap(result.Items[0], &artistData)
+			if err != nil {
+				return err
+			}
+			artistNames = append(artistNames, strings.TrimPrefix(artistData.ArtistName, "NAME#"))
+		}
+	}
+
 	dbItem := map[string]any{
-		"pk":          "EVENT#" + event.ID,
-		"sk":          "DETAILS",
-		"event_name":  event.Name,
-		"description": event.Description,
-		"duration":    event.Duration,
-		"category":    string(event.Category),
-		"is_blocked":  event.IsBlocked,
-		"artist_ids":  event.ArtistIDs,
+		"pk":           "EVENT#" + event.ID,
+		"sk":           "DETAILS",
+		"event_name":   event.Name,
+		"description":  event.Description,
+		"duration":     event.Duration,
+		"category":     string(event.Category),
+		"is_blocked":   event.IsBlocked,
+		"artist_ids":   event.ArtistIDs,
+		"artist_names": artistNames,
 	}
 
 	itemAV, err := attributevalue.MarshalMap(dbItem)
@@ -150,7 +185,6 @@ func (er *EventRepositoryDDB) GetByID(ctx context.Context, eventID string) (*mod
 		Category:    eddb.Category,
 		IsBlocked:   eddb.IsBlocked,
 		ArtistNames: artistNames,
-		ArtistBios:  artistBios,
 	}
 
 	return dto, nil
@@ -242,7 +276,6 @@ func (er *EventRepositoryDDB) GetEventsByCity(ctx context.Context, city string) 
 		eventID := strings.TrimPrefix(dbRec.SK, "EVENT#")
 
 		var artistNames []string
-		var artistBios []string
 		for _, artistID := range dbRec.ArtistIDs {
 			artistPK := "ARTIST#" + artistID
 			artistResp, aerr := er.db.Query(ctx, &dynamodb.QueryInput{
@@ -258,14 +291,13 @@ func (er *EventRepositoryDDB) GetEventsByCity(ctx context.Context, city string) 
 				continue
 			}
 			var artistRec struct {
-				ArtistName string `dynamodbav:"artist_name"`
-				ArtistBio  string `dynamodbav:"artist_bio"`
+				ArtistName string `dynamodbav:"sk"`
+				ArtistBio  string `dynamodbav:"bio"`
 			}
 			if err := attributevalue.UnmarshalMap(artistResp.Items[0], &artistRec); err != nil {
 				continue
 			}
 			artistNames = append(artistNames, artistRec.ArtistName)
-			artistBios = append(artistBios, artistRec.ArtistBio)
 		}
 
 		dto := &models.EventDTO{
@@ -276,7 +308,6 @@ func (er *EventRepositoryDDB) GetEventsByCity(ctx context.Context, city string) 
 			Category:    dbRec.Category,
 			IsBlocked:   dbRec.IsBlocked,
 			ArtistNames: artistNames,
-			ArtistBios:  artistBios,
 		}
 		results = append(results, dto)
 	}

@@ -52,12 +52,10 @@ func (bs *BookingService) AddBooking(
 		}
 	}
 
+	//add time booked
+
 	numTickets := len(requestedSeats)
 	totalPrice := float64(numTickets) * show.Price
-	if err := bs.ShowRepo.UpdateShowBooking(ctx, models.Booking{ShowID: showID, Seats: requestedSeats}); err != nil {
-		return nil, fmt.Errorf("failed to update show bookings: %w", err)
-	}
-
 	newBooking := &models.Booking{
 		UserID:            userID,
 		ShowID:            showID,
@@ -69,6 +67,10 @@ func (bs *BookingService) AddBooking(
 	if err := bs.BookingRepo.Create(ctx, newBooking); err != nil {
 		return nil, fmt.Errorf("error creating booking: %w", err)
 	}
+	if err := bs.ShowRepo.UpdateShowBooking(ctx, models.Booking{ShowID: showID, Seats: requestedSeats}); err != nil {
+		return nil, fmt.Errorf("failed to update show bookings: %w", err)
+	}
+
 	bookingDTO := models.UserBookingDTO{
 		BookingID:        newBooking.BookingID,
 		UserEmail:        newBooking.UserID,

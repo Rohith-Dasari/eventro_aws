@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"eventro_aws/db"
 	authenticationmiddleware "eventro_aws/internals/middleware/authentication_middleware"
+	corsmiddleware "eventro_aws/internals/middleware/cors_middleware"
 	"eventro_aws/internals/models"
 	eventrepository "eventro_aws/internals/repository/event_repository"
 	eventservice "eventro_aws/internals/services/event_service"
@@ -29,7 +30,7 @@ func init() {
 }
 
 func main() {
-	lambda.Start(authenticationmiddleware.AuthorizedInvoke(UpdateEvent))
+	lambda.Start(corsmiddleware.WithCORS(authenticationmiddleware.AuthorizedInvoke(UpdateEvent)))
 }
 
 func UpdateEvent(ctx context.Context, event events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
@@ -37,7 +38,7 @@ func UpdateEvent(ctx context.Context, event events.APIGatewayProxyRequest) (even
 	if err != nil {
 		return customresponse.LambdaError(403, "unable to get user role")
 	}
-	if strings.ToLower(role) != "Admin" {
+	if strings.ToLower(role) != "admin" {
 		return customresponse.LambdaError(403, "only admin is authorised")
 	}
 

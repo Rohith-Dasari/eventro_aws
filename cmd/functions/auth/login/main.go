@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"eventro_aws/db"
+	corsmiddleware "eventro_aws/internals/middleware/cors_middleware"
 	"eventro_aws/internals/models"
 	userrepository "eventro_aws/internals/repository/user_repository"
 	"eventro_aws/internals/services/authorisation"
@@ -27,7 +28,7 @@ func init() {
 }
 
 func main() {
-	lambda.Start(Login)
+	lambda.Start(corsmiddleware.WithCORS(Login))
 }
 
 func Login(ctx context.Context, event events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {

@@ -19,8 +19,8 @@ type VenueResponse struct {
 }
 
 type VenueDTO struct {
-	ID    string `json:"id"`
-	Name  string `dynamodbav:"venue_name"`
-	City  string `dynamodbav:"venue_city"`
-	State string `dynamodbav:"venue_state"`
+	ID    string `json:"venue_id"`
+	Name  string `dynamodbav:"venue_name" json:"venue_name"`
+	City  string `dynamodbav:"venue_city" json:"city"`
+	State string `dynamodbav:"venue_state" json:"state"`
 }

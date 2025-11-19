@@ -33,29 +33,29 @@ type ArtistDTO struct {
 }
 
 type UserBookingDTO struct {
-	UserEmail        string
-	BookingDate      string
-	BookingID        string
-	ShowID           string
-	TimeBooked       string
-	NumTicketsBooked int
-	TotalPrice       float64
-	Seats            []string
-	VenueCity        string
-	VenueName        string
-	VenueState       string
-	EventName        string
-	EventDuration    string
-	EventID          string
+	UserEmail        string   `json:"user_email"`
+	BookingDate      string   `json:"booking_date"`
+	BookingID        string   `json:"booking_id"`
+	ShowID           string   `json:"show_id"`
+	TimeBooked       string   `json:"time_booked"`
+	NumTicketsBooked int      `json:"num_tickets_booked"`
+	TotalPrice       float64  `json:"total_price"`
+	Seats            []string `json:"seats"`
+	VenueCity        string   `json:"venue_city"`
+	VenueName        string   `json:"venue_name"`
+	VenueState       string   `json:"venue_state"`
+	EventName        string   `json:"event_name"`
+	EventDuration    string   `json:"event_duration"`
+	EventID          string   `json:"event_id"`
 }
 
 type EventDTO struct {
-	EventID     string   `dynamodbav:"pk"`
-	EventName   string   `dynamodbav:"event_name"`
-	Description string   `dynamodbav:"description"`
-	Duration    string   `dynamodbav:"duration"`
-	Category    string   `dynamodbav:"category"`
-	IsBlocked   bool     `dynamodbav:"is_blocked"`
-	ArtistNames []string `dynamodbav:"artist_names"`
-	ArtistBios  []string `dynamodbav:"artist_bios"`
+	EventID     string   `dynamodbav:"pk" json:"id"`
+	EventName   string   `dynamodbav:"event_name" json:"name"`
+	Description string   `dynamodbav:"description" json:"description"`
+	Duration    string   `dynamodbav:"duration" json:"duration"`
+	Category    string   `dynamodbav:"category" json:"category"`
+	IsBlocked   bool     `dynamodbav:"is_blocked" json:"is_blocked"`
+	ArtistNames []string `dynamodbav:"artist_names" json:"artist_names"`
+	ArtistIDs   []string `json:"artist_ids"`
 }

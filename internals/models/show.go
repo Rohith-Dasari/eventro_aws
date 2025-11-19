@@ -55,4 +55,5 @@ type ShowDTO struct {
 	BookedSeats []string  `json:"booked_seats"`
 	Venue       VenueDTO  `json:"venue"`
 	IsBlocked   bool      `json:"is_blocked"`
+	HostID      string    `json:"host_id"`
 }

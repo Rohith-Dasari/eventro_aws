@@ -4,6 +4,7 @@ import (
 	"context"
 	"eventro_aws/db"
 	authenticationmiddleware "eventro_aws/internals/middleware/authentication_middleware"
+	corsmiddleware "eventro_aws/internals/middleware/cors_middleware"
 	venuerepository "eventro_aws/internals/repository/venue_repository"
 	venueservice "eventro_aws/internals/services/venue_service"
 	customresponse "eventro_aws/internals/utils"
@@ -28,7 +29,7 @@ func init() {
 }
 
 func main() {
-	lambda.Start(authenticationmiddleware.AuthorizedInvoke(GetHostVenues))
+	lambda.Start(corsmiddleware.WithCORS(authenticationmiddleware.AuthorizedInvoke(GetHostVenues)))
 }
 
 func GetHostVenues(ctx context.Context, event events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {

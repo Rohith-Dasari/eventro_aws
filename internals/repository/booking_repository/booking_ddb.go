@@ -124,7 +124,7 @@ func (br *BookingRepositoryDDB) Create(ctx context.Context, booking *models.Book
 	compositeKey := "BOOKED_SHOW_DATE#" + showDDB.ShowDateTime + "#BOOKINGID#" + booking.BookingID
 
 	bookingDDB := UserBookingDDB{
-		UserEmail:             booking.User.Email,
+		UserEmail:             booking.UserID,
 		BookingDate_BookingID: compositeKey,
 		ShowID:                booking.ShowID,
 		TimeBooked:            booking.TimeBooked.String(),

@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"eventro_aws/db"
 	authenticationmiddleware "eventro_aws/internals/middleware/authentication_middleware"
+	corsmiddleware "eventro_aws/internals/middleware/cors_middleware"
 	"eventro_aws/internals/models"
 	eventrepository "eventro_aws/internals/repository/event_repository"
 	eventservice "eventro_aws/internals/services/event_service"
@@ -24,7 +25,7 @@ type CreateEventRequest struct {
 	Description string   `json:"description"`
 	Duration    string   `json:"duration"`
 	Category    string   `json:"category"`
-	ArtistIDs   []string `json:"artists_ids"`
+	ArtistIDs   []string `json:"artist_ids"`
 	ArtistNames []string `json:"artist_names,omitempty"`
 }
 
@@ -39,7 +40,7 @@ func init() {
 }
 
 func main() {
-	lambda.Start(authenticationmiddleware.AuthorizedInvoke(CreateEvent))
+	lambda.Start(corsmiddleware.WithCORS(authenticationmiddleware.AuthorizedInvoke(CreateEvent)))
 }
 
 func CreateEvent(ctx context.Context, event events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {

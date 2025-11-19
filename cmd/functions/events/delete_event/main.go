@@ -4,6 +4,7 @@ import (
 	"context"
 	"eventro_aws/db"
 	authenticationmiddleware "eventro_aws/internals/middleware/authentication_middleware"
+	corsmiddleware "eventro_aws/internals/middleware/cors_middleware"
 	eventrepository "eventro_aws/internals/repository/event_repository"
 	eventservice "eventro_aws/internals/services/event_service"
 	customresponse "eventro_aws/internals/utils"
@@ -26,7 +27,7 @@ func init() {
 }
 
 func main() {
-	lambda.Start(authenticationmiddleware.AuthorizedInvoke(deleteEvent))
+	lambda.Start(corsmiddleware.WithCORS(authenticationmiddleware.AuthorizedInvoke(deleteEvent)))
 }
 
 func deleteEvent(ctx context.Context, event events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {

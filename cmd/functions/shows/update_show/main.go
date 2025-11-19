@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"eventro_aws/db"
 	authenticationmiddleware "eventro_aws/internals/middleware/authentication_middleware"
+	corsmiddleware "eventro_aws/internals/middleware/cors_middleware"
 	showrepository "eventro_aws/internals/repository/show_repository"
 	showservice "eventro_aws/internals/services/show_service"
 	customresponse "eventro_aws/internals/utils"
@@ -16,10 +17,7 @@ import (
 )
 
 type UpdateShowRequest struct {
-	Price     *float64 `json:"price,omitempty"`
-	ShowDate  *string  `json:"show_date,omitempty"`
-	ShowTime  *string  `json:"show_time,omitempty"`
-	IsBlocked *bool    `json:"is_blocked,omitempty"`
+	IsBlocked bool `json:"is_blocked,omitempty"`
 }
 
 var showService showservice.ShowService
@@ -35,7 +33,7 @@ func init() {
 }
 
 func main() {
-	lambda.Start(authenticationmiddleware.AuthorizedInvoke(UpdateShow))
+	lambda.Start(corsmiddleware.WithCORS(authenticationmiddleware.AuthorizedInvoke(UpdateShow)))
 }
 
 func UpdateShow(ctx context.Context, event events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
@@ -50,10 +48,9 @@ func UpdateShow(ctx context.Context, event events.APIGatewayProxyRequest) (event
 	var req UpdateShowRequest
 	if err := json.Unmarshal([]byte(event.Body), &req); err != nil {
 		return customresponse.SendCustomResponse(http.StatusBadRequest, "invalid request body")
-
 	}
 
-	err = showService.UpdateShow(ctx, showID, userID, *req.IsBlocked)
+	err = showService.UpdateShow(ctx, showID, userID, req.IsBlocked)
 	if err != nil {
 		return customresponse.LambdaError(http.StatusInternalServerError, "Failed to update show: "+err.Error())
 	}

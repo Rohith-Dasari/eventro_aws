@@ -4,6 +4,7 @@ import (
 	"context"
 	"eventro_aws/db"
 	authenticationmiddleware "eventro_aws/internals/middleware/authentication_middleware"
+	corsmiddleware "eventro_aws/internals/middleware/cors_middleware"
 	bookingrepository "eventro_aws/internals/repository/booking_repository"
 	showrepository "eventro_aws/internals/repository/show_repository"
 	bookingservice "eventro_aws/internals/services/booking_service"
@@ -29,7 +30,7 @@ func init() {
 }
 
 func main() {
-	lambda.Start(GetBookingsOfUser)
+	lambda.Start(corsmiddleware.WithCORS(authenticationmiddleware.AuthorizedInvoke(GetBookingsOfUser)))
 }
 
 func GetBookingsOfUser(ctx context.Context, event events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
@@ -37,13 +38,16 @@ func GetBookingsOfUser(ctx context.Context, event events.APIGatewayProxyRequest)
 	authUserID, _ := authenticationmiddleware.GetUserEmail(ctx)
 	role, _ := authenticationmiddleware.GetUserRole(ctx)
 
-	userID := event.QueryStringParameters["userId"]
+	userID := event.PathParameters["userID"]
+	if userID == "" {
+		return customresponse.LambdaError(400, "userID is required")
+	}
 
 	if role != "admin" {
 		userID = authUserID
 	}
 
-	bookings, err := bookingService.BrowseBookings(ctx, userID)
+	bookings, err := bookingService.BrowseBookings(ctx, authUserID)
 	if err != nil {
 		return customresponse.SendCustomResponse(500, "failed to fetch bookings")
 	}

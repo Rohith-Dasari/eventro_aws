@@ -26,6 +26,7 @@ func (e *EventService) CreateNewEvent(ctx context.Context, name, description, du
 		Duration:    duration,
 		Category:    category,
 		IsBlocked:   false,
+		ArtistIDs:   artistIDs,
 	}
 
 	if err := e.EventRepo.Create(ctx, &event); err != nil {
@@ -43,7 +44,7 @@ func (e *EventService) CreateNewEvent(ctx context.Context, name, description, du
 	}, nil
 }
 
-func (s *EventService) BrowseEvents(ctx context.Context, city, name string) ([]*models.EventDTO, error) {
+func (s *EventService) BrowseEvents(ctx context.Context, city, name string, blocked bool) ([]*models.EventDTO, error) {
 	var events []*models.EventDTO
 	var err error
 
@@ -60,6 +61,24 @@ func (s *EventService) BrowseEvents(ctx context.Context, city, name string) ([]*
 		if err != nil {
 			return nil, err
 		}
+	}
+	var blockedEvents []*models.EventDTO
+	var unblockedEvents []*models.EventDTO
+	if blocked {
+
+		for _, event := range events {
+			if event.IsBlocked {
+				blockedEvents = append(blockedEvents, event)
+			}
+		}
+		events = blockedEvents
+	} else {
+		for _, event := range events {
+			if !event.IsBlocked {
+				unblockedEvents = append(unblockedEvents, event)
+			}
+		}
+		events = unblockedEvents
 	}
 
 	return events, nil
@@ -89,4 +108,13 @@ func (e *EventService) UpdateEvent(ctx context.Context, eventID string, isBlocke
 
 func (e *EventService) GetHostEvents(ctx context.Context, hostID string) ([]models.EventDTO, error) {
 	return e.EventRepo.GetEventsHostedByHost(ctx, hostID)
+}
+
+func (s *EventService) GetEventByID(ctx context.Context, id string) (*models.EventDTO, error) {
+	event, err := s.EventRepo.GetByID(ctx, id)
+	if err != nil {
+		return nil, fmt.Errorf("from get by id : " + err.Error())
+	}
+
+	return event, nil
 }

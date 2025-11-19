@@ -12,4 +12,5 @@ type EventServiceI interface {
 	DeleteEvent(ctx context.Context, eventID string) error
 	UpdateEvent(ctx context.Context, eventID string, isBlocked bool) (models.EventResponse, error)
 	GetHostEventsGetHostEvents(ctx context.Context, hostID string) ([]models.EventDTO, error)
+	GetEventByID(ctx context.Context, id string) (*models.EventDTO, error)
 }

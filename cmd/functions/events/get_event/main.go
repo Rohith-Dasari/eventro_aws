@@ -28,26 +28,18 @@ func init() {
 }
 
 func main() {
-	lambda.Start(corsmiddleware.WithCORS(authenticationmiddleware.AuthorizedInvoke(BrowseEvents)))
+	lambda.Start(corsmiddleware.WithCORS(authenticationmiddleware.AuthorizedInvoke(GetEventByID)))
 }
 
-func BrowseEvents(ctx context.Context, event events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
-	cityParam := event.QueryStringParameters["city"]
-	nameParam := event.QueryStringParameters["name"]
-	isBlockedParam := event.QueryStringParameters["isBlocked"]
-	var blocked bool
-	if isBlockedParam == "true" {
-		blocked = true
-	} else {
-		blocked = false
-	}
+func GetEventByID(ctx context.Context, event events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
+	eventID := event.PathParameters["eventID"]
 
-	resEvents, err := eventService.BrowseEvents(ctx, cityParam, nameParam, blocked)
+	resEvent, err := eventService.GetEventByID(ctx, eventID)
 	if err != nil {
 		return customresponse.LambdaError(500, "internal server error: "+err.Error())
 	}
 
-	body, err := json.Marshal(resEvents)
+	body, err := json.Marshal(resEvent)
 	if err != nil {
 		return customresponse.LambdaError(500, "failed to marshal events")
 	}
