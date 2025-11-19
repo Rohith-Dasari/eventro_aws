@@ -3,6 +3,7 @@ package venuerepository
 import (
 	"context"
 	"errors"
+	authenticationmiddleware "eventro_aws/internals/middleware/authentication_middleware"
 	"eventro_aws/internals/models"
 	"fmt"
 	"strings"
@@ -71,7 +72,7 @@ func (r *VenueRepositoryDDB) Create(ctx context.Context, venue *models.Venue) er
 	return nil
 }
 
-func (r *VenueRepositoryDDB) GetByID(ctx context.Context, id string) (*models.Venue, error) {
+func (r *VenueRepositoryDDB) GetByID(ctx context.Context, id string) (*models.VenueResponse, error) {
 
 	pk := "VENUE#" + id
 
@@ -92,8 +93,7 @@ func (r *VenueRepositoryDDB) GetByID(ctx context.Context, id string) (*models.Ve
 		return nil, errors.New("venue not found")
 	}
 
-	// Unmarshal into Venue
-	var venue models.Venue
+	var venue models.VenueResponse
 	if err := attributevalue.UnmarshalMap(out.Items[0], &venue); err != nil {
 		return nil, fmt.Errorf("unmarshal venue failed: %w", err)
 	}
@@ -104,21 +104,21 @@ func (r *VenueRepositoryDDB) GetByID(ctx context.Context, id string) (*models.Ve
 	return &venue, nil
 }
 
-func (r *VenueRepositoryDDB) ListByHost(ctx context.Context, hostID string) ([]models.Venue, error) {
+func (r *VenueRepositoryDDB) ListByHost(ctx context.Context, hostID string) ([]models.VenueResponse, error) {
 
-	userIDs, err := r.getUserVenueIDs(hostID)
+	userVenueIDs, err := r.getUserVenueIDs(ctx, hostID)
 	if err != nil {
 		return nil, err
 	}
 
-	if len(userIDs) == 0 {
-		return []models.Venue{}, nil
+	if len(userVenueIDs) == 0 {
+		return []models.VenueResponse{}, nil
 	}
 
-	keys := make([]map[string]types.AttributeValue, 0, len(userIDs))
+	keys := make([]map[string]types.AttributeValue, 0, len(userVenueIDs))
 	hostPK := "HOST#" + hostID
 
-	for _, vid := range userIDs {
+	for _, vid := range userVenueIDs {
 		keys = append(keys, map[string]types.AttributeValue{
 			"pk": &types.AttributeValueMemberS{Value: "VENUE#" + vid},
 			"sk": &types.AttributeValueMemberS{Value: hostPK},
@@ -135,87 +135,90 @@ func (r *VenueRepositoryDDB) ListByHost(ctx context.Context, hostID string) ([]m
 	}
 
 	items := batchOut.Responses[r.tableName]
-	venues := make([]models.Venue, 0, len(items))
+	venues := make([]models.VenueResponse, 0, len(items))
 
 	for _, item := range items {
+		var venue models.VenueResponse
 
-		var raw struct {
-			PK        string `dynamodbav:"pk"`
-			SK        string `dynamodbav:"sk"`
-			Name      string `dynamodbav:"name"`
-			City      string `dynamodbav:"city"`
-			State     string `dynamodbav:"state"`
-			IsBlocked bool   `dynamodbav:"is_blocked"`
-		}
-
-		if err := attributevalue.UnmarshalMap(item, &raw); err != nil {
+		if err := attributevalue.UnmarshalMap(item, &venue); err != nil {
 			return nil, fmt.Errorf("failed to unmarshal venue: %w", err)
 		}
 
-		venueID := strings.TrimPrefix(raw.PK, "VENUE#")
-		hostID := strings.TrimPrefix(raw.SK, "HOST#")
+		venue.ID = strings.TrimPrefix(venue.ID, "VENUE#")
+		venue.HostID = strings.TrimPrefix(venue.HostID, "HOST#")
 
-		venues = append(venues, models.Venue{
-			ID:        venueID,
-			HostID:    hostID,
-			Name:      raw.Name,
-			City:      raw.City,
-			State:     raw.State,
-			IsBlocked: raw.IsBlocked,
-		})
+		venues = append(venues, venue)
 	}
 
 	return venues, nil
 }
 
-func (r *VenueRepositoryDDB) getUserVenueIDs(email string) ([]string, error) {
-	ctx := context.Background()
-
+func (r *VenueRepositoryDDB) getUserVenueIDs(ctx context.Context, hostID string) ([]string, error) {
 	out, err := r.db.GetItem(ctx, &dynamodb.GetItemInput{
 		TableName: aws.String(r.tableName),
 		Key: map[string]types.AttributeValue{
-			"pk": &types.AttributeValueMemberS{Value: "USER#" + email},
+			"pk": &types.AttributeValueMemberS{Value: "USER#" + hostID},
 			"sk": &types.AttributeValueMemberS{Value: "DETAILS"},
 		},
 	})
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to get user by id: %w", err)
 	}
 	if out.Item == nil {
-		return nil, fmt.Errorf("user not found")
+		return []string{}, nil
 	}
 
 	var data struct {
 		VenueIDs []string `dynamodbav:"venue_ids"`
 	}
 	if err := attributevalue.UnmarshalMap(out.Item, &data); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to unmarshal user data: %w", err)
 	}
 
+	if data.VenueIDs == nil {
+		return []string{}, nil
+	}
 	return data.VenueIDs, nil
 }
 
-func (r *VenueRepositoryDDB) Update(ctx context.Context, venue *models.Venue) error {
-	item := map[string]interface{}{
-		"pk":         "VENUE#" + venue.ID,
-		"sk":         "HOST#" + venue.HostID,
-		"name":       venue.Name,
-		"city":       venue.City,
-		"state":      venue.State,
-		"is_blocked": venue.IsBlocked,
+func (r *VenueRepositoryDDB) Update(ctx context.Context, venueID string, isBlocked bool) error {
+
+	// Ensure correct PK format
+	if !strings.HasPrefix(venueID, "VENUE#") {
+		venueID = "VENUE#" + venueID
 	}
 
-	av, err := attributevalue.MarshalMap(item)
+	// Host SK
+	hostEmail, _ := authenticationmiddleware.GetUserEmail(ctx)
+	sk := "HOST#" + hostEmail
+
+	// Build PK + SK
+	pkAttr, err := attributevalue.Marshal(venueID)
 	if err != nil {
-		return fmt.Errorf("failed to marshal venue: %w", err)
+		return err
+	}
+	skAttr, err := attributevalue.Marshal(sk)
+	if err != nil {
+		return err
 	}
 
-	_, err = r.db.PutItem(ctx, &dynamodb.PutItemInput{
+	// UpdateItem
+	_, err = r.db.UpdateItem(ctx, &dynamodb.UpdateItemInput{
 		TableName: aws.String(r.tableName),
-		Item:      av,
+		Key: map[string]types.AttributeValue{
+			"pk": pkAttr,
+			"sk": skAttr,
+		},
+		UpdateExpression:          aws.String("SET is_blocked = :b"),
+		ExpressionAttributeValues: map[string]types.AttributeValue{":b": &types.AttributeValueMemberBOOL{Value: isBlocked}},
+		ConditionExpression:       aws.String("attribute_exists(pk) AND attribute_exists(sk)"),
 	})
 	if err != nil {
-		return fmt.Errorf("failed to update venue: %w", err)
+		var cce *types.ConditionalCheckFailedException
+		if errors.As(err, &cce) {
+			return fmt.Errorf("venue not found or you are not the host")
+		}
+		return err
 	}
 
 	return nil

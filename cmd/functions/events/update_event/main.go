@@ -10,6 +10,7 @@ import (
 	eventservice "eventro_aws/internals/services/event_service"
 	customresponse "eventro_aws/internals/utils"
 	"fmt"
+	"strings"
 
 	"github.com/aws/aws-lambda-go/events"
 	"github.com/aws/aws-lambda-go/lambda"
@@ -33,7 +34,10 @@ func main() {
 
 func UpdateEvent(ctx context.Context, event events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
 	role, err := authenticationmiddleware.GetUserRole(ctx)
-	if err != nil || role != "Admin" {
+	if err != nil {
+		return customresponse.LambdaError(403, "unable to get user role")
+	}
+	if strings.ToLower(role) != "Admin" {
 		return customresponse.LambdaError(403, "only admin is authorised")
 	}
 

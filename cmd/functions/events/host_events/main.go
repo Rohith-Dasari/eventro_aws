@@ -31,7 +31,6 @@ func main() {
 }
 
 func EventsOfHost(ctx context.Context, event events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
-	// Get hostID from path parameters first, then query string
 	hostID := event.PathParameters["hostID"]
 	if hostID == "" {
 		hostID = event.QueryStringParameters["hostID"]
@@ -40,7 +39,12 @@ func EventsOfHost(ctx context.Context, event events.APIGatewayProxyRequest) (eve
 		return customresponse.SendCustomResponse(400, "hostID is required")
 	}
 
-	hostEvents, err := eventService.GetHostEvents(ctx, hostID)
+	hostEmail, err := authenticationmiddleware.GetUserEmail(ctx)
+	if err != nil {
+		return customresponse.LambdaError(403, "unable to get user email")
+	}
+
+	hostEvents, err := eventService.GetHostEvents(ctx, hostEmail)
 	if err != nil {
 		return customresponse.SendCustomResponse(500, "Failed to fetch events")
 	}

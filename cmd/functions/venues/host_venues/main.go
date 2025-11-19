@@ -43,8 +43,10 @@ func GetHostVenues(ctx context.Context, event events.APIGatewayProxyRequest) (ev
 			"user unauthorised",
 		)
 	}
+	fmt.Println("hostID: " + hostID)
+	hostEmail, _ := authenticationmiddleware.GetUserEmail(ctx)
 
-	venues, err := venueService.GetHostVenues(ctx, hostID)
+	venues, err := venueService.GetHostVenues(ctx, hostEmail)
 	if err != nil {
 		return customresponse.SendCustomResponse(
 			http.StatusInternalServerError,

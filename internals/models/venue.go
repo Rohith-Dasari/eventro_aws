@@ -10,13 +10,12 @@ type Venue struct {
 }
 
 type VenueResponse struct {
-	ID                   string
-	Name                 string
-	HostID               string
-	City                 string
-	State                string
-	IsSeatLayoutRequired bool
-	IsBlocked            bool
+	ID        string `gorm:"primaryKey;type:uuid;default:gen_random_uuid()" dynamodbav:"pk"`
+	Name      string `gorm:"type:text;not null" dynamodbav:"venue_name"`
+	HostID    string `gorm:"type:uuid;not null;index" dynamodbav:"sk"`
+	City      string `gorm:"type:text;not null" dynamodbav:"venue_city"`
+	State     string `gorm:"type:text;not null" dynamodbav:"venue_state"`
+	IsBlocked bool   `gorm:"default:false" dynamodbav:"is_blocked"`
 }
 
 type VenueDTO struct {
