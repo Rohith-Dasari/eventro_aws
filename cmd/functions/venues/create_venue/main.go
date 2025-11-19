@@ -10,6 +10,7 @@ import (
 	customresponse "eventro_aws/internals/utils"
 	"fmt"
 	"net/http"
+	"strings"
 
 	"github.com/aws/aws-lambda-go/events"
 	"github.com/aws/aws-lambda-go/lambda"
@@ -41,7 +42,10 @@ func main() {
 func CreateVenue(ctx context.Context, event events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
 
 	role, err := authenticationmiddleware.GetUserRole(ctx)
-	if err != nil || role != "Host" {
+	if err != nil {
+		return customresponse.SendCustomResponse(http.StatusForbidden, "unable to get user role")
+	}
+	if strings.ToLower(role) != "host" {
 		return customresponse.SendCustomResponse(http.StatusForbidden, "only host can create venue")
 	}
 	hostID, err := authenticationmiddleware.GetUserEmail(ctx)

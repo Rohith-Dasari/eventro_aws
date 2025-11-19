@@ -23,7 +23,7 @@ func init() {
 		panic(fmt.Sprintf("Failed to initialize DB: %v", err))
 	}
 
-	eventRepo := eventrepository.NewEventRepoDDB(ddb, "events")
+	eventRepo := eventrepository.NewEventRepoDDB(ddb, "eventro")
 	eventService = eventservice.NewEventService(eventRepo)
 }
 
@@ -34,25 +34,23 @@ func main() {
 func UpdateEvent(ctx context.Context, event events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
 	role, err := authenticationmiddleware.GetUserRole(ctx)
 	if err != nil || role != "Admin" {
-		return customresponse.SendCustomResponse(403, "only admin is authorised")
+		return customresponse.LambdaError(403, "only admin is authorised")
 	}
 
 	eventID := event.PathParameters["eventID"]
+
 	if eventID == "" {
-		eventID = event.QueryStringParameters["eventID"]
-	}
-	if eventID == "" {
-		return customresponse.SendCustomResponse(400, "eventID is required")
+		return customresponse.LambdaError(400, "eventID is required")
 	}
 
 	var updateData models.EventUpdate
 	if err := json.Unmarshal([]byte(event.Body), &updateData); err != nil {
-		return customresponse.SendCustomResponse(400, "invalid request body")
+		return customresponse.LambdaError(400, "invalid request body")
 	}
 
-	err = eventService.UpdateEvent(ctx, eventID, *updateData.IsBlocked)
+	err = eventService.UpdateEvent(ctx, eventID, updateData.IsBlocked)
 	if err != nil {
-		return customresponse.SendCustomResponse(500, "internal server error")
+		return customresponse.LambdaError(500, "internal server error: "+err.Error())
 	}
 
 	return events.APIGatewayProxyResponse{

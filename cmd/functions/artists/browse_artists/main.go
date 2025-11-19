@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"eventro_aws/db"
+	authenticationmiddleware "eventro_aws/internals/middleware/authentication_middleware"
 	artistrepository "eventro_aws/internals/repository/artist_repository"
 	artistservice "eventro_aws/internals/services/artist_service"
 	customresponse "eventro_aws/internals/utils"
@@ -10,6 +11,7 @@ import (
 	"net/http"
 
 	"github.com/aws/aws-lambda-go/events"
+	"github.com/aws/aws-lambda-go/lambda"
 )
 
 var artistService artistservice.Artistservice
@@ -24,9 +26,13 @@ func init() {
 	artistService = artistservice.NewArtistService(artistRepo)
 }
 
+func main() {
+	lambda.Start(authenticationmiddleware.AuthorizedInvoke(BrowseArtists))
+}
+
 func BrowseArtists(ctx context.Context, event events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
 	// name := event.QueryStringParameters["name"]
-	artistID := event.QueryStringParameters["artistID"]
+	artistID := event.PathParameters["artistID"]
 	if artistID != "" {
 		artist, err := artistService.GetArtistByID(ctx, artistID)
 		if err != nil {

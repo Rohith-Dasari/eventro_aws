@@ -92,7 +92,7 @@ func (ur UserRepositoryDDB) GetByEmail(email string) (*models.User, error) {
 		}
 	}
 
-	user.Email = strings.TrimPrefix("USER#", user.Email)
+	user.Email = strings.TrimPrefix(user.Email, "USER#")
 
 	return &user, nil
 }

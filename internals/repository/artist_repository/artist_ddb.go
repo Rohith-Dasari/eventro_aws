@@ -5,6 +5,7 @@ import (
 	"eventro_aws/internals/models"
 	"fmt"
 	"log"
+	"strings"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/feature/dynamodb/attributevalue"
@@ -24,6 +25,9 @@ func NewArtistRepositoryDDB(db *dynamodb.Client, tableName string) *ArtistReposi
 func (r *ArtistRepositoryDDB) Create(artist models.ArtistDTO) error {
 
 	artist.ArtistID = "ARTIST#" + artist.ArtistID
+	if !(strings.HasPrefix(artist.Name, "NAME#")) {
+		artist.Name = "NAME#artist" + artist.Name
+	}
 	item, err := attributevalue.MarshalMap(artist)
 	if err != nil {
 		return err
@@ -52,6 +56,7 @@ func (r *ArtistRepositoryDDB) GetByID(id string) (*models.ArtistDTO, error) {
 		},
 		Limit: aws.Int32(1),
 	})
+
 	if err != nil {
 		return nil, fmt.Errorf("artist query error: %w", err)
 	}

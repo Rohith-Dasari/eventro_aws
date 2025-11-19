@@ -28,7 +28,7 @@ func init() {
 }
 
 func main() {
-	lambda.Start(CreateArtist)
+	lambda.Start(authenticationmiddleware.AuthorizedInvoke(CreateArtist))
 }
 
 type CreateArtistRequest struct {

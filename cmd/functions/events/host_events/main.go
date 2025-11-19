@@ -22,7 +22,7 @@ func init() {
 		panic(fmt.Sprintf("Failed to initialize DB: %v", err))
 	}
 
-	eventRepo := eventrepository.NewEventRepoDDB(ddb, "events")
+	eventRepo := eventrepository.NewEventRepoDDB(ddb, "eventro")
 	eventService = eventservice.NewEventService(eventRepo)
 }
 

@@ -62,7 +62,7 @@ Resources:
           Type: Api
           Properties:
             Method: post
-            Path: /api/v1/events
+            Path: /events
             RestApiId: !Ref Api
       Policies:
         - DynamoDBCrudPolicy:
@@ -79,27 +79,13 @@ Resources:
           Type: Api
           Properties:
             Method: patch
-            Path: /api/v1/events/{eventID}
+            Path: /events/{eventID}
             RestApiId: !Ref Api
       Policies:
         - DynamoDBCrudPolicy:
             TableName: eventro
-  BrowseEvent:
-    Type: AWS::Serverless::Function
-    Metadata:
-      BuildMethod: go1.x
-    Properties:
-      CodeUri: ./cmd/functions/events/browse_events
-      Events:
-        ApiEvent:
-          Type: Api
-          Properties:
-            Method: get
-            Path: /api/v1/events
-            RestApiId: !Ref Api
-      Policies:
-        - DynamoDBCrudPolicy:
-            TableName: eventro
+  
+  
 
   HostEvents:
     Type: AWS::Serverless::Function
@@ -112,7 +98,75 @@ Resources:
           Type: Api
           Properties:
             Method: get
-            Path: /api/v1/hosts/{hostID}/events
+            Path: /hosts/{hostID}/events
+            RestApiId: !Ref Api
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: eventro
+
+  CreateArtist:
+    Type: AWS::Serverless::Function
+    Metadata:
+      BuildMethod: go1.x
+    Properties:
+      CodeUri: ./cmd/functions/artists/create_artist
+      Events:
+        ApiEvent:
+          Type: Api
+          Properties:
+            Method: post
+            Path: /artists
+            RestApiId: !Ref Api
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: eventro
+
+  BrowseArtists:
+    Type: AWS::Serverless::Function
+    Metadata:
+      BuildMethod: go1.x
+    Properties:
+      CodeUri: ./cmd/functions/artists/browse_artists
+      Events:
+        ApiEvent:
+          Type: Api
+          Properties:
+            Method: get
+            Path: /artists/{artistID}
+            RestApiId: !Ref Api
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: eventro
+  BrowseEvents:
+    Type: AWS::Serverless::Function
+    Metadata:
+      BuildMethod: go1.x
+    Properties:
+      CodeUri: ./cmd/functions/events/browse_events
+      Events:
+        ApiEvent:
+          Type: Api
+          Properties:
+            Method: get
+            Path: /events
+            RestApiId: !Ref Api
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: eventro
+
+
+  CreateVenue:
+    Type: AWS::Serverless::Function
+    Metadata:
+      BuildMethod: go1.x
+    Properties:
+      CodeUri: ./cmd/functions/venues/create_venue
+      Events:
+        ApiEvent:
+          Type: Api
+          Properties:
+            Method: post
+            Path: /venues
             RestApiId: !Ref Api
       Policies:
         - DynamoDBCrudPolicy:

@@ -43,11 +43,25 @@ func (e *EventService) CreateNewEvent(ctx context.Context, name, description, du
 	}, nil
 }
 
-func (s *EventService) BrowseEvents(ctx context.Context, city string) ([]models.EventDTO, error) {
-	events, err := s.EventRepo.GetEventsByCity(ctx, city)
-	if err != nil {
-		return nil, err
+func (s *EventService) BrowseEvents(ctx context.Context, city, name string) ([]*models.EventDTO, error) {
+	var events []*models.EventDTO
+	var err error
+
+	if city != "" {
+		events, err = s.EventRepo.GetEventsByCity(ctx, city)
+		if err != nil {
+			return nil, err
+		}
 	}
+
+	if name != "" {
+		events, err = s.EventRepo.GetEventsByName(ctx, name)
+
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	return events, nil
 }
 
@@ -59,14 +73,11 @@ func (e *EventService) DeleteEvent(ctx context.Context, eventID string) error {
 }
 
 func (e *EventService) UpdateEvent(ctx context.Context, eventID string, isBlocked bool) error {
-
-	// Fetch existing event
-	event, err := e.EventRepo.GetByID(ctx, eventID)
-	if err != nil {
-		return err
-	}
-
-	event.IsBlocked = isBlocked
+	// event, err := e.EventRepo.GetByID(ctx, eventID)
+	// if err != nil {
+	// 	return fmt.Errorf("error from GetByID" + err.Error())
+	// }
+	// event.IsBlocked = isBlocked
 
 	// Save updated event
 	if err := e.EventRepo.Update(ctx, eventID, isBlocked); err != nil {

@@ -34,9 +34,7 @@ func NewEventRepoDDB(db *dynamodb.Client, tableName string) *EventRepositoryDDB 
 }
 
 func (er *EventRepositoryDDB) Create(ctx context.Context, event *models.Event) error {
-	// ctx := context.Background()
-
-	dbItem := map[string]interface{}{
+	dbItem := map[string]any{
 		"pk":          "EVENT#" + event.ID,
 		"sk":          "DETAILS",
 		"event_name":  event.Name,
@@ -60,13 +58,37 @@ func (er *EventRepositoryDDB) Create(ctx context.Context, event *models.Event) e
 		log.Printf("Couldn't put item into table %s: %v\n", er.TableName, err)
 		return err
 	}
+	sk := fmt.Sprintf("EVENT_NAME#%s#EVENT_ID#%s", event.Name, event.ID)
+
+	nameIndex := map[string]any{
+		"pk": "EVENTS",
+		"sk": sk,
+	}
+
+	nameAV, err := attributevalue.MarshalMap(nameIndex)
+	if err != nil {
+		return fmt.Errorf("marshal name-index error: %w", err)
+	}
+
+	_, err = er.db.PutItem(ctx, &dynamodb.PutItemInput{
+		TableName: aws.String(er.TableName),
+		Item:      nameAV,
+	})
+	if err != nil {
+		return fmt.Errorf("put name-index error: %w", err)
+	}
 
 	return nil
 }
 
 func (er *EventRepositoryDDB) GetByID(ctx context.Context, eventID string) (*models.EventDTO, error) {
-	// ctx := context.Background()
-	pk := "EVENT#" + eventID
+	var pk string
+
+	if strings.HasPrefix(eventID, "EVENT#") {
+		pk = eventID
+	} else {
+		pk = "EVENT#" + eventID
+	}
 
 	out, err := er.db.GetItem(ctx, &dynamodb.GetItemInput{
 		TableName: aws.String(er.TableName),
@@ -75,12 +97,13 @@ func (er *EventRepositoryDDB) GetByID(ctx context.Context, eventID string) (*mod
 			"sk": &types.AttributeValueMemberS{Value: "DETAILS"},
 		},
 	})
+
 	if err != nil {
 		return nil, fmt.Errorf("ddb get error: %w", err)
 	}
 
-	if out.Item == nil {
-		return nil, fmt.Errorf("event not found: %s", eventID)
+	if out.Item == nil || len(out.Item) == 0 {
+		return &models.EventDTO{}, nil
 	}
 
 	var eddb EventDDB
@@ -100,22 +123,20 @@ func (er *EventRepositoryDDB) GetByID(ctx context.Context, eventID string) (*mod
 			KeyConditionExpression: aws.String("pk = :pk AND begins_with(sk, :skPrefix)"),
 			ExpressionAttributeValues: map[string]types.AttributeValue{
 				":pk":       &types.AttributeValueMemberS{Value: artistPK},
-				":skPrefix": &types.AttributeValueMemberS{Value: "NAME"},
+				":skPrefix": &types.AttributeValueMemberS{Value: "NAME#"},
 			},
-			Limit: aws.Int32(1), 
+			Limit: aws.Int32(1),
 		})
 		if err != nil || len(artistOut.Items) == 0 {
 			continue
 		}
 
-		var artist struct {
-			Name string `dynamodbav:"artist_name"`
-			Bio  string `dynamodbav:"artist_bio"`
-		}
+		var artist models.ArtistDTO
 
 		if err := attributevalue.UnmarshalMap(artistOut.Items[0], &artist); err != nil {
 			continue
 		}
+		artist.Name = strings.TrimPrefix(artist.Name, "NAME#")
 
 		artistNames = append(artistNames, artist.Name)
 		artistBios = append(artistBios, artist.Bio)
@@ -136,10 +157,16 @@ func (er *EventRepositoryDDB) GetByID(ctx context.Context, eventID string) (*mod
 }
 
 func (er *EventRepositoryDDB) Update(ctx context.Context, eventID string, isBlocked bool) error {
+	var pk string
+	if strings.HasPrefix(eventID, "EVENT#") {
+		pk = eventID
+	} else {
+		pk = "EVENT#" + eventID
+	}
 	_, err := er.db.UpdateItem(ctx, &dynamodb.UpdateItemInput{
 		TableName: aws.String(er.TableName),
 		Key: map[string]types.AttributeValue{
-			"pk": &types.AttributeValueMemberS{Value: "EVENT#" + eventID},
+			"pk": &types.AttributeValueMemberS{Value: pk},
 			"sk": &types.AttributeValueMemberS{Value: "DETAILS"},
 		},
 		UpdateExpression: aws.String("SET is_blocked = :b"),
@@ -175,7 +202,7 @@ func (er *EventRepositoryDDB) Delete(ctx context.Context, id string) error {
 	return err
 }
 
-func (er *EventRepositoryDDB) GetEventsByCity(ctx context.Context, city string) ([]models.EventDTO, error) {
+func (er *EventRepositoryDDB) GetEventsByCity(ctx context.Context, city string) ([]*models.EventDTO, error) {
 	pk := "CITY#" + city
 	exprVals := map[string]types.AttributeValue{
 		":pk": &types.AttributeValueMemberS{Value: pk},
@@ -192,10 +219,10 @@ func (er *EventRepositoryDDB) GetEventsByCity(ctx context.Context, city string) 
 	}
 
 	if len(resp.Items) == 0 {
-		return []models.EventDTO{}, nil
+		return []*models.EventDTO{}, nil
 	}
 
-	var results []models.EventDTO
+	var results []*models.EventDTO
 	for _, item := range resp.Items {
 		var dbRec struct {
 			PK          string   `dynamodbav:"pk"`
@@ -241,7 +268,7 @@ func (er *EventRepositoryDDB) GetEventsByCity(ctx context.Context, city string) 
 			artistBios = append(artistBios, artistRec.ArtistBio)
 		}
 
-		dto := models.EventDTO{
+		dto := &models.EventDTO{
 			EventID:     eventID,
 			EventName:   dbRec.EventName,
 			Description: dbRec.Description,
@@ -368,4 +395,59 @@ func (er *EventRepositoryDDB) GetEventsHostedByHost(ctx context.Context, hostID 
 	}
 
 	return results, nil
+}
+
+func (er *EventRepositoryDDB) GetEventsByName(ctx context.Context, name string) ([]*models.EventDTO, error) {
+	ids, err := er.SearchByName(ctx, name)
+	if err != nil {
+		return nil, fmt.Errorf("error from SearchByName: %s", err.Error())
+	}
+	if len(ids) == 0 {
+		return []*models.EventDTO{}, nil
+	}
+
+	var events []*models.EventDTO
+
+	for _, id := range ids {
+		dto, err := er.GetByID(ctx, id)
+		if err != nil {
+			continue
+		}
+		events = append(events, dto)
+	}
+	return events, nil
+
+}
+
+func (er *EventRepositoryDDB) SearchByName(ctx context.Context, namePrefix string) ([]string, error) {
+
+	skPrefix := "EVENT_NAME#" + namePrefix
+
+	out, err := er.db.Query(ctx, &dynamodb.QueryInput{
+		TableName:              aws.String(er.TableName),
+		KeyConditionExpression: aws.String("pk = :pk AND begins_with(sk, :skPrefix)"),
+		ExpressionAttributeValues: map[string]types.AttributeValue{
+			":pk":       &types.AttributeValueMemberS{Value: "EVENTS"},
+			":skPrefix": &types.AttributeValueMemberS{Value: skPrefix},
+		},
+	})
+
+	if err != nil {
+		return nil, fmt.Errorf("error from Query: %s", err.Error())
+	}
+
+	eventIDs := []string{}
+	for _, item := range out.Items {
+		sk := item["sk"].(*types.AttributeValueMemberS).Value
+
+		parts := strings.SplitN(sk, "EVENT_ID#", 2)
+		if len(parts) != 2 {
+			continue
+		}
+
+		eventID := parts[1]
+		eventIDs = append(eventIDs, eventID)
+	}
+
+	return eventIDs, nil
 }

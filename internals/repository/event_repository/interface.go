@@ -11,6 +11,7 @@ type EventRepository interface {
 	GetByID(ctx context.Context, eventID string) (*models.EventDTO, error)
 	Update(ctx context.Context, eventID string, isBlocked bool) error
 	Delete(ctx context.Context, id string) error
-	GetEventsByCity(ctx context.Context, city string) ([]models.EventDTO, error)
+	GetEventsByCity(ctx context.Context, city string) ([]*models.EventDTO, error)
 	GetEventsHostedByHost(ctx context.Context, hostID string) ([]models.EventDTO, error)
+	GetEventsByName(ctx context.Context, name string) ([]*models.EventDTO, error)
 }

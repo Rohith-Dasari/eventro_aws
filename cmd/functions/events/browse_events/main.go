@@ -22,7 +22,7 @@ func init() {
 		panic(fmt.Sprintf("Failed to initialize DB: %v", err))
 	}
 
-	eventRepo := eventrepository.NewEventRepoDDB(ddb, "events")
+	eventRepo := eventrepository.NewEventRepoDDB(ddb, "eventro")
 	eventService = eventservice.NewEventService(eventRepo)
 }
 
@@ -31,12 +31,12 @@ func main() {
 }
 
 func BrowseEvents(ctx context.Context, event events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
-	// isBlockedParam := event.QueryStringParameters["isBlocked"]
 	cityParam := event.QueryStringParameters["city"]
+	nameParam := event.QueryStringParameters["name"]
 
-	resEvents, err := eventService.BrowseEvents(ctx, cityParam)
+	resEvents, err := eventService.BrowseEvents(ctx, cityParam, nameParam)
 	if err != nil {
-		return customresponse.LambdaError(500, "internal server error")
+		return customresponse.LambdaError(500, "internal server error: "+err.Error())
 	}
 
 	body, err := json.Marshal(resEvents)
@@ -48,5 +48,4 @@ func BrowseEvents(ctx context.Context, event events.APIGatewayProxyRequest) (eve
 		StatusCode: 200,
 		Body:       string(body),
 	}, nil
-
 }
