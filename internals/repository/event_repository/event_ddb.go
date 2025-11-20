@@ -37,9 +37,7 @@ func NewEventRepoDDB(db *dynamodb.Client, tableName string) *EventRepositoryDDB 
 func (er *EventRepositoryDDB) Create(ctx context.Context, event *models.Event) error {
 	var artistNames []string
 
-	// Query each artist to get their names
 	for _, artistID := range event.ArtistIDs {
-		// Query DynamoDB for artist name
 		artistPK := "ARTIST#" + artistID
 		input := &dynamodb.QueryInput{
 			TableName:              aws.String(er.TableName),
@@ -52,11 +50,10 @@ func (er *EventRepositoryDDB) Create(ctx context.Context, event *models.Event) e
 
 		result, err := er.db.Query(ctx, input)
 		if err != nil {
-			return err // handle error appropriately
+			return err
 		}
 
 		if len(result.Items) > 0 {
-			// Extract artist name from the result
 			var artistData struct {
 				ArtistName string `dynamodbav:"artist_name"`
 			}
@@ -218,7 +215,6 @@ func (er *EventRepositoryDDB) Update(ctx context.Context, eventID string, isBloc
 }
 
 func (er *EventRepositoryDDB) Delete(ctx context.Context, id string) error {
-	// ctx := context.Background()
 	key, err := attributevalue.MarshalMap(map[string]string{
 		"pk": "EVENT#" + id,
 		"sk": "DETAILS",
@@ -318,36 +314,33 @@ func (er *EventRepositoryDDB) GetEventsByCity(ctx context.Context, city string) 
 func (er *EventRepositoryDDB) GetEventsHostedByHost(ctx context.Context, hostID string) ([]models.EventDTO, error) {
 	hostSK := "HOST#" + hostID
 
-	var venueIDs []string
-
-	scanInput := &dynamodb.ScanInput{
+	venueScan := &dynamodb.ScanInput{
 		TableName:        aws.String(er.TableName),
-		FilterExpression: aws.String("begins_with(pk, :venuePrefix) AND sk = :hostSk"),
+		FilterExpression: aws.String("begins_with(pk, :vp) AND sk = :h"),
 		ExpressionAttributeValues: map[string]types.AttributeValue{
-			":venuePrefix": &types.AttributeValueMemberS{Value: "VENUE#"},
-			":hostSk":      &types.AttributeValueMemberS{Value: hostSK},
+			":vp": &types.AttributeValueMemberS{Value: "VENUE#"},
+			":h":  &types.AttributeValueMemberS{Value: hostSK},
 		},
 		ProjectionExpression: aws.String("pk"),
 	}
 
-	pg := dynamodb.NewScanPaginator(er.db, scanInput)
-	for pg.HasMorePages() {
-		out, err := pg.NextPage(ctx)
+	var venueIDs []string
+	venuePg := dynamodb.NewScanPaginator(er.db, venueScan)
+
+	for venuePg.HasMorePages() {
+		page, err := venuePg.NextPage(ctx)
 		if err != nil {
-			log.Printf("scan for host venues failed: %v\n", err)
 			return nil, err
 		}
-		for _, item := range out.Items {
+
+		for _, item := range page.Items {
 			var rec struct {
 				PK string `dynamodbav:"pk"`
 			}
 			if err := attributevalue.UnmarshalMap(item, &rec); err != nil {
 				continue
 			}
-			if strings.HasPrefix(rec.PK, "VENUE#") {
-				venueID := strings.TrimPrefix(rec.PK, "VENUE#")
-				venueIDs = append(venueIDs, venueID)
-			}
+			venueIDs = append(venueIDs, strings.TrimPrefix(rec.PK, "VENUE#"))
 		}
 	}
 
@@ -355,71 +348,56 @@ func (er *EventRepositoryDDB) GetEventsHostedByHost(ctx context.Context, hostID 
 		return []models.EventDTO{}, nil
 	}
 
-	datePrefix := "DATE#"
-
-	var venueClauses []string
 	exprVals := map[string]types.AttributeValue{
-		":datePrefix": &types.AttributeValueMemberS{Value: datePrefix},
+		":show": &types.AttributeValueMemberS{Value: "SHOW#"},
+		":host": &types.AttributeValueMemberS{Value: hostID},
 	}
+
+	var inList []string
 	for i, vid := range venueIDs {
-		placeholder := fmt.Sprintf(":v%d", i)
-		venueClauses = append(venueClauses, "venue_id = "+placeholder)
-		exprVals[placeholder] = &types.AttributeValueMemberS{Value: vid}
+		key := fmt.Sprintf(":v%d", i)
+		exprVals[key] = &types.AttributeValueMemberS{Value: vid}
+		inList = append(inList, key)
 	}
-	venueFilter := strings.Join(venueClauses, " OR ")
 
-	filterExpr := "begins_with(sk, :datePrefix) AND (" + venueFilter + ")"
+	filter := fmt.Sprintf("begins_with(pk, :show) AND host_id = :host AND venue_id IN (%s)", strings.Join(inList, ", "))
 
-	showScanInput := &dynamodb.ScanInput{
+	showScan := &dynamodb.ScanInput{
 		TableName:                 aws.String(er.TableName),
-		FilterExpression:          aws.String(filterExpr),
+		FilterExpression:          aws.String(filter),
 		ExpressionAttributeValues: exprVals,
-		ProjectionExpression:      aws.String("pk, sk, event_id, venue_id, show_id, show_date_time"),
+		ProjectionExpression:      aws.String("event_id"),
 	}
 
-	eventIDsSet := make(map[string]struct{})
+	eventSet := make(map[string]struct{})
+	showPg := dynamodb.NewScanPaginator(er.db, showScan)
 
-	showPg := dynamodb.NewScanPaginator(er.db, showScanInput)
 	for showPg.HasMorePages() {
-		out, err := showPg.NextPage(ctx)
+		page, err := showPg.NextPage(ctx)
 		if err != nil {
-			log.Printf("scan for shows failed: %v\n", err)
 			return nil, err
 		}
-		for _, item := range out.Items {
-			var showRec struct {
-				PK          string `dynamodbav:"pk"`
-				SK          string `dynamodbav:"sk"`
-				EventID     string `dynamodbav:"event_id"`
-				VenueID     string `dynamodbav:"venue_id"`
-				ShowID      string `dynamodbav:"show_id"`
-				ShowDateStr string `dynamodbav:"show_date_time"`
+
+		for _, item := range page.Items {
+			var rec struct {
+				EventID string `dynamodbav:"event_id"`
 			}
-			if err := attributevalue.UnmarshalMap(item, &showRec); err != nil {
+			if err := attributevalue.UnmarshalMap(item, &rec); err != nil {
 				continue
 			}
-			eid := showRec.EventID
-			if eid == "" {
-				parts := strings.Split(showRec.PK, "#")
-				if len(parts) >= 2 {
-					eid = parts[1]
-				}
-			}
-			if eid != "" {
-				eventIDsSet[eid] = struct{}{}
+			if rec.EventID != "" {
+				eventSet[rec.EventID] = struct{}{}
 			}
 		}
 	}
 
-	if len(eventIDsSet) == 0 {
+	if len(eventSet) == 0 {
 		return []models.EventDTO{}, nil
 	}
-
 	var results []models.EventDTO
-	for eid := range eventIDsSet {
+	for eid := range eventSet {
 		dto, err := er.GetByID(ctx, eid)
 		if err != nil {
-			log.Printf("GetByID failed for event %s: %v\n", eid, err)
 			continue
 		}
 		results = append(results, *dto)

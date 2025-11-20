@@ -9,6 +9,9 @@ import (
 	"fmt"
 	"regexp"
 	"strings"
+	"time"
+
+	"github.com/google/uuid"
 )
 
 type BookingService struct {
@@ -53,15 +56,19 @@ func (bs *BookingService) AddBooking(
 	}
 
 	//add time booked
+	bookingID := uuid.New().String()
 
 	numTickets := len(requestedSeats)
 	totalPrice := float64(numTickets) * show.Price
+
 	newBooking := &models.Booking{
 		UserID:            userID,
 		ShowID:            showID,
 		NumTickets:        numTickets,
 		TotalBookingPrice: totalPrice,
 		Seats:             requestedSeats,
+		BookingID:         bookingID,
+		TimeBooked:        time.Now(),
 	}
 
 	if err := bs.BookingRepo.Create(ctx, newBooking); err != nil {

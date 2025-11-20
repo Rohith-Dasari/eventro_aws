@@ -85,10 +85,6 @@ func (r *ShowRepositoryDDB) Create(ctx context.Context, show *models.Show) error
 		return fmt.Errorf("failed to put SHOW item: %w", err)
 	}
 
-	// -----------------------------------------
-	// 2) FETCH EVENT DETAILS FIRST
-	// pk: EVENT#<event_id>, sk: DETAILS
-	// -----------------------------------------
 	eventPK := "EVENT#" + show.EventID
 
 	evtOut, err := r.db.GetItem(ctx, &dynamodb.GetItemInput{
@@ -117,9 +113,6 @@ func (r *ShowRepositoryDDB) Create(ctx context.Context, show *models.Show) error
 		return fmt.Errorf("failed to unmarshal event details: %w", err)
 	}
 
-	// -----------------------------------------
-	// 3) CITY#<city> -> EVENT#<event_id>
-	// -----------------------------------------
 	cityEventItem := map[string]interface{}{
 		"pk":          "CITY#" + city,
 		"sk":          "EVENT#" + show.EventID,
@@ -142,10 +135,6 @@ func (r *ShowRepositoryDDB) Create(ctx context.Context, show *models.Show) error
 		return fmt.Errorf("failed to put CITY->EVENT item: %w", err)
 	}
 
-	// -----------------------------------------
-	// 4) EVENT#<event_id>#CITY#<city> ->
-	//    DATE#<date>#VENUE#<venue_id>#SHOW#<show_id>
-	// -----------------------------------------
 	pk3 := "EVENT#" + show.EventID + "#CITY#" + city
 	sk3 := "DATE#" + showDateTime + "#VENUE#" + show.VenueID + "#SHOW#" + show.ID
 
@@ -175,7 +164,6 @@ func (r *ShowRepositoryDDB) GetByID(ctx context.Context, id string) (*models.Sho
 		return nil, errors.New("id is required")
 	}
 
-	// 1. Fetch SHOW item
 	out, err := r.db.GetItem(ctx, &dynamodb.GetItemInput{
 		TableName: aws.String(r.TableName),
 		Key: map[string]types.AttributeValue{
@@ -190,13 +178,11 @@ func (r *ShowRepositoryDDB) GetByID(ctx context.Context, id string) (*models.Sho
 		return nil, fmt.Errorf("show not found: %s", id)
 	}
 
-	// match DDB schema
 	var showDDB ShowDDB
 	if err := attributevalue.UnmarshalMap(out.Item, &showDDB); err != nil {
 		return nil, fmt.Errorf("failed to unmarshal show: %w", err)
 	}
 
-	// Parse date/time
 	parts := strings.Split(showDDB.ShowDateTime, "T")
 	if len(parts) != 2 {
 		return nil, fmt.Errorf("invalid show_date_time: %s", showDDB.ShowDateTime)
@@ -204,13 +190,11 @@ func (r *ShowRepositoryDDB) GetByID(ctx context.Context, id string) (*models.Sho
 	date, _ := time.Parse("2006-01-02", parts[0])
 	timeStr := parts[1]
 
-	// 2. Fetch VENUE
 	venueDTO, err := r.getVenueDTO(ctx, showDDB.VenueID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch venue: %w", err)
 	}
 
-	// 3. Construct ShowDTO
 	return &models.ShowDTO{
 		ID:          id,
 		EventID:     showDDB.EventID,
@@ -239,7 +223,6 @@ func (r *ShowRepositoryDDB) ListByEvent(ctx context.Context, eventID, city, date
 		}
 	}
 
-	// Query lightweight show rows
 	out, err := r.db.Query(ctx, &dynamodb.QueryInput{
 		TableName:              aws.String(r.TableName),
 		KeyConditionExpression: aws.String("pk = :pk AND begins_with(sk, :sk)"),
@@ -256,7 +239,6 @@ func (r *ShowRepositoryDDB) ListByEvent(ctx context.Context, eventID, city, date
 
 	for _, item := range out.Items {
 
-		// STEP A – Unmarshal lightweight row
 		var row struct {
 			PK        string  `dynamodbav:"pk"`
 			SK        string  `dynamodbav:"sk"`
@@ -267,23 +249,17 @@ func (r *ShowRepositoryDDB) ListByEvent(ctx context.Context, eventID, city, date
 			return nil, fmt.Errorf("failed to unmarshal row: %w", err)
 		}
 
-		// Parse SK: DATE#<date>#VENUE#<venueID>#SHOW#<showID>
 		parts := strings.Split(row.SK, "#SHOW#")
-		// [DATE, <date>, VENUE, <venueID>, SHOW, <showID>]
-
 		if len(parts) != 2 {
 			return nil, fmt.Errorf("invalid show SK format: %s", row.SK)
 		}
 
 		showID := parts[1]
-
-		// STEP B – Fetch full SHOW details
 		fullShow, err := r.GetByID(ctx, showID)
 		if err != nil {
 			return nil, fmt.Errorf("failed to fetch show details: %w", err)
 		}
 
-		// override price from row (if needed)
 		fullShow.Price = row.Price
 
 		shows = append(shows, *fullShow)

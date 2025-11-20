@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"encoding/json"
 	"eventro_aws/db"
 	authenticationmiddleware "eventro_aws/internals/middleware/authentication_middleware"
 	corsmiddleware "eventro_aws/internals/middleware/cors_middleware"
@@ -50,9 +49,5 @@ func EventsOfHost(ctx context.Context, event events.APIGatewayProxyRequest) (eve
 		return customresponse.SendCustomResponse(500, "Failed to fetch events")
 	}
 
-	body, err := json.Marshal(hostEvents)
-	if err != nil {
-		return customresponse.SendCustomResponse(500, "failed to marshal response")
-	}
-	return customresponse.SendCustomResponse(200, body)
+	return customresponse.SendCustomResponse(200, hostEvents)
 }

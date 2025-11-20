@@ -26,7 +26,6 @@ func NewVenueRepositoryDDB(db *dynamodb.Client, tableName string) *VenueReposito
 
 func (r *VenueRepositoryDDB) Create(ctx context.Context, venue *models.Venue) error {
 
-	// 1) INSERT VENUE ITEM
 	venueItem := map[string]interface{}{
 		"pk":          "VENUE#" + venue.ID,
 		"sk":          "HOST#" + venue.HostID,
@@ -48,11 +47,8 @@ func (r *VenueRepositoryDDB) Create(ctx context.Context, venue *models.Venue) er
 	if err != nil {
 		return fmt.Errorf("put venue failed: %w", err)
 	}
-
-	// 2) UPDATE USER VENUE LIST
 	userPK := "USER#" + venue.HostID
 
-	// Push venue ID into venue_ids list
 	_, err = r.db.UpdateItem(ctx, &dynamodb.UpdateItemInput{
 		TableName: aws.String(r.tableName),
 		Key: map[string]types.AttributeValue{
@@ -183,16 +179,13 @@ func (r *VenueRepositoryDDB) getUserVenueIDs(ctx context.Context, hostID string)
 
 func (r *VenueRepositoryDDB) Update(ctx context.Context, venueID string, isBlocked bool) error {
 
-	// Ensure correct PK format
 	if !strings.HasPrefix(venueID, "VENUE#") {
 		venueID = "VENUE#" + venueID
 	}
 
-	// Host SK
 	hostEmail, _ := authenticationmiddleware.GetUserEmail(ctx)
 	sk := "HOST#" + hostEmail
 
-	// Build PK + SK
 	pkAttr, err := attributevalue.Marshal(venueID)
 	if err != nil {
 		return err
@@ -201,8 +194,6 @@ func (r *VenueRepositoryDDB) Update(ctx context.Context, venueID string, isBlock
 	if err != nil {
 		return err
 	}
-
-	// UpdateItem
 	_, err = r.db.UpdateItem(ctx, &dynamodb.UpdateItemInput{
 		TableName: aws.String(r.tableName),
 		Key: map[string]types.AttributeValue{

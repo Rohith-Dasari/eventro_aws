@@ -38,7 +38,6 @@ func NewBookingRepositoryDDB(db *dynamodb.Client, tableName string) *BookingRepo
 }
 
 func (br *BookingRepositoryDDB) Create(ctx context.Context, booking *models.Booking) error {
-	// STEP A: Get SHOW DETAILS
 	showPK := "SHOW#" + booking.ShowID
 	showSK := "DETAILS"
 
@@ -67,7 +66,6 @@ func (br *BookingRepositoryDDB) Create(ctx context.Context, booking *models.Book
 		return err
 	}
 
-	// STEP B: Get VENUE DETAILS
 	venuePK := "VENUE#" + showDDB.VenueID
 
 	venueOut, err := br.db.Query(ctx, &dynamodb.QueryInput{
@@ -77,7 +75,7 @@ func (br *BookingRepositoryDDB) Create(ctx context.Context, booking *models.Book
 			":pk": &types.AttributeValueMemberS{Value: venuePK},
 			":sk": &types.AttributeValueMemberS{Value: "HOST#"},
 		},
-		Limit: aws.Int32(1), // only one host
+		Limit: aws.Int32(1),
 	})
 	if err != nil {
 		return fmt.Errorf("failed to query venue host: %w", err)
@@ -95,7 +93,6 @@ func (br *BookingRepositoryDDB) Create(ctx context.Context, booking *models.Book
 		return err
 	}
 
-	// STEP C: Get EVENT DETAILS
 	eventPK := "EVENT#" + showDDB.EventID
 
 	eventOut, err := br.db.GetItem(ctx, &dynamodb.GetItemInput{
@@ -114,17 +111,18 @@ func (br *BookingRepositoryDDB) Create(ctx context.Context, booking *models.Book
 
 	var eventDDB struct {
 		Name     string `dynamodbav:"event_name"`
-		Duration string `dynamodbav:"event_duration"`
+		Duration string `dynamodbav:"duration"`
 	}
 	if err := attributevalue.UnmarshalMap(eventOut.Item, &eventDDB); err != nil {
 		return err
 	}
 
-	// STEP D: Construct booking DDB item
 	compositeKey := "BOOKED_SHOW_DATE#" + showDDB.ShowDateTime + "#BOOKINGID#" + booking.BookingID
 
+	pkValue := "USER#" + booking.UserID
+
 	bookingDDB := UserBookingDDB{
-		UserEmail:             booking.UserID,
+		UserEmail:             pkValue,
 		BookingDate_BookingID: compositeKey,
 		ShowID:                booking.ShowID,
 		TimeBooked:            booking.TimeBooked.String(),
@@ -154,26 +152,20 @@ func (br *BookingRepositoryDDB) Create(ctx context.Context, booking *models.Book
 
 func (r *BookingRepositoryDDB) ListByUser(ctx context.Context, userID string) ([]models.UserBookingDTO, error) {
 	input := &dynamodb.QueryInput{
-		TableName: aws.String(r.TableName),
-		KeyConditions: map[string]types.Condition{
-			"pk": {
-				ComparisonOperator: types.ComparisonOperatorEq,
-				AttributeValueList: []types.AttributeValue{
-					&types.AttributeValueMemberS{Value: "USER#" + userID},
-				},
-			},
-			"sk": {
-				ComparisonOperator: types.ComparisonOperatorBeginsWith,
-				AttributeValueList: []types.AttributeValue{
-					&types.AttributeValueMemberS{Value: "BOOKED_SHOW_DATE#"},
-				},
-			},
+		TableName:              aws.String(r.TableName),
+		KeyConditionExpression: aws.String("pk = :pk AND begins_with(sk, :skPrefix)"),
+		ExpressionAttributeValues: map[string]types.AttributeValue{
+			":pk":       &types.AttributeValueMemberS{Value: "USER#" + userID},
+			":skPrefix": &types.AttributeValueMemberS{Value: "BOOKED_SHOW_DATE#"},
 		},
 	}
 
 	result, err := r.db.Query(ctx, input)
 	if err != nil {
 		return nil, err
+	}
+	if len(result.Items) == 0 {
+		return []models.UserBookingDTO{}, nil
 	}
 
 	var bookingRecords []UserBookingDDB
@@ -186,9 +178,6 @@ func (r *BookingRepositoryDDB) ListByUser(ctx context.Context, userID string) ([
 
 	for _, b := range bookingRecords {
 		parts := strings.Split(b.BookingDate_BookingID, "#")
-		if len(parts) < 4 {
-			continue
-		}
 
 		dto := models.UserBookingDTO{
 			UserEmail:        b.UserEmail,
@@ -210,5 +199,8 @@ func (r *BookingRepositoryDDB) ListByUser(ctx context.Context, userID string) ([
 		dtoList = append(dtoList, dto)
 	}
 
+	if dtoList == nil {
+		return []models.UserBookingDTO{}, nil
+	}
 	return dtoList, nil
 }
