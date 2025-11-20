@@ -314,6 +314,7 @@ func (r *ShowRepositoryDDB) getVenueDTO(ctx context.Context, VenueID string) (*m
 	if err := attributevalue.UnmarshalMap(venueOut.Items[0], &venueDDB); err != nil {
 		return nil, fmt.Errorf("failed to unmarshal venue: %w", err)
 	}
+	venueDDB.ID = VenueID
 	return &venueDDB, nil
 }
 

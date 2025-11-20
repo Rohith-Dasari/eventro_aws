@@ -48,9 +48,6 @@ func (s *UserService) GetUserByMailID(ctx context.Context, mail string) (*models
 
 	user, err := s.UserRepo.GetByEmail(mail)
 	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, fmt.Errorf("user not found")
-		}
 		return nil, err
 	}
 	return user, nil
