@@ -2,6 +2,7 @@ package eventservice
 
 import (
 	"context"
+	authenticationmiddleware "eventro_aws/internals/middleware/authentication_middleware"
 	"eventro_aws/internals/models"
 	eventsrepository "eventro_aws/internals/repository/event_repository"
 	"fmt"
@@ -55,16 +56,30 @@ func (s *EventService) BrowseEvents(ctx context.Context, city, name string, bloc
 		if err != nil {
 			return nil, err
 		}
-	}
-
-	if name != "" {
+	} else if name != "" {
 		name = strings.ToLower(name)
 		events, err = s.EventRepo.GetEventsByName(ctx, name)
 
 		if err != nil {
 			return nil, err
 		}
+	} else if blocked {
+		events, err = s.EventRepo.GetBlockedEvents(ctx)
+		if err != nil {
+			return nil, err
+		}
+		return events, nil
 	}
+
+	role, err := authenticationmiddleware.GetUserRole(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	if name != "" && role == "admin" {
+		return events, nil
+	}
+
 	var blockedEvents []*models.EventDTO
 	var unblockedEvents []*models.EventDTO
 	if blocked {
@@ -108,7 +123,7 @@ func (e *EventService) UpdateEvent(ctx context.Context, eventID string, isBlocke
 	return nil
 }
 
-func (e *EventService) GetHostEvents(ctx context.Context, hostID string) ([]models.EventDTO, error) {
+func (e *EventService) GetHostEvents(ctx context.Context, hostID string) ([]*models.EventDTO, error) {
 	return e.EventRepo.GetEventsHostedByHost(ctx, hostID)
 }
 

@@ -69,19 +69,6 @@ func (r *ShowRepositoryDDB) Create(ctx context.Context, show *models.Show) error
 		"expires_at":     expires_at,
 	}
 
-	// showItem := ShowDDB{
-	// 	PK:             "SHOW#" + show.ID,
-	// 	SK:             "DETAILS",
-	// 	City:           city,
-	// 	Venue_id:       show.VenueID,
-	// 	event_id:       show.EventID,
-	// 	created_at:     createdAt,
-	// 	price:          show.Price,
-	// 	show_date_time: showDateTime,
-	// 	booked_seats:   show.BookedSeats,
-	// 	is_blocked:     show.IsBlocked,
-	// }
-
 	av1, err := attributevalue.MarshalMap(showItem)
 	if err != nil {
 		return fmt.Errorf("failed to marshal show item: %w", err)
@@ -164,6 +151,25 @@ func (r *ShowRepositoryDDB) Create(ctx context.Context, show *models.Show) error
 		Item:      av3,
 	}); err != nil {
 		return fmt.Errorf("failed to put EVENT#CITY->DATE item: %w", err)
+	}
+
+	pk4 := "HOST#" + show.HostID
+	sk4 := "EVENT#" + show.EventID
+	hostEventItem := map[string]any{
+		"pk": pk4,
+		"sk": sk4,
+		"expires_at":expires_at,
+	}
+	av4, err := attributevalue.MarshalMap(hostEventItem)
+	if err != nil {
+		return fmt.Errorf("failed to marshal host-event item: %w", err)
+	}
+
+	if _, err := r.db.PutItem(ctx, &dynamodb.PutItemInput{
+		TableName: aws.String(r.TableName),
+		Item:      av4,
+	}); err != nil {
+		return fmt.Errorf("failed to put Host ->Event item: %w", err)
 	}
 
 	return nil

@@ -55,7 +55,7 @@ func (er *EventRepositoryDDB) Create(ctx context.Context, event *models.Event) e
 
 		if len(result.Items) > 0 {
 			var artistData struct {
-				ArtistName string `dynamodbav:"artist_name"`
+				ArtistName string `dynamodbav:"sk"`
 			}
 			err = attributevalue.UnmarshalMap(result.Items[0], &artistData)
 			if err != nil {
@@ -134,44 +134,13 @@ func (er *EventRepositoryDDB) GetByID(ctx context.Context, eventID string) (*mod
 		return nil, fmt.Errorf("ddb get error: %w", err)
 	}
 
-	if out.Item == nil || len(out.Item) == 0 {
+	if len(out.Item) == 0 {
 		return &models.EventDTO{}, nil
 	}
 
 	var eddb EventDDB
 	if err := attributevalue.UnmarshalMap(out.Item, &eddb); err != nil {
 		return nil, fmt.Errorf("unmarshal error: %w", err)
-	}
-
-	var artistNames []string
-	var artistBios []string
-
-	for _, artistID := range eddb.ArtistIDs {
-
-		artistPK := "ARTIST#" + artistID
-
-		artistOut, err := er.db.Query(ctx, &dynamodb.QueryInput{
-			TableName:              aws.String(er.TableName),
-			KeyConditionExpression: aws.String("pk = :pk AND begins_with(sk, :skPrefix)"),
-			ExpressionAttributeValues: map[string]types.AttributeValue{
-				":pk":       &types.AttributeValueMemberS{Value: artistPK},
-				":skPrefix": &types.AttributeValueMemberS{Value: "NAME#"},
-			},
-			Limit: aws.Int32(1),
-		})
-		if err != nil || len(artistOut.Items) == 0 {
-			continue
-		}
-
-		var artist models.ArtistDTO
-
-		if err := attributevalue.UnmarshalMap(artistOut.Items[0], &artist); err != nil {
-			continue
-		}
-		artist.Name = strings.TrimPrefix(artist.Name, "NAME#")
-
-		artistNames = append(artistNames, artist.Name)
-		artistBios = append(artistBios, artist.Bio)
 	}
 
 	dto := &models.EventDTO{
@@ -181,7 +150,8 @@ func (er *EventRepositoryDDB) GetByID(ctx context.Context, eventID string) (*mod
 		Duration:    eddb.Duration,
 		Category:    eddb.Category,
 		IsBlocked:   eddb.IsBlocked,
-		ArtistNames: artistNames,
+		ArtistNames: eddb.ArtistNames,
+		ArtistIDs:   eddb.ArtistIDs,
 	}
 
 	return dto, nil
@@ -252,7 +222,7 @@ func (er *EventRepositoryDDB) GetEventsByCity(ctx context.Context, city string) 
 		return []*models.EventDTO{}, nil
 	}
 
-	eventIDs := make(map[string]struct{})
+	eventIDs := []string{}
 	for _, item := range resp.Items {
 		var dbRec struct {
 			SK string `dynamodbav:"sk"`
@@ -266,122 +236,125 @@ func (er *EventRepositoryDDB) GetEventsByCity(ctx context.Context, city string) 
 		if eventID == "" {
 			continue
 		}
-		eventIDs[eventID] = struct{}{}
+		eventIDs = append(eventIDs, eventID)
+
 	}
 
 	if len(eventIDs) == 0 {
 		return []*models.EventDTO{}, nil
 	}
 
-	results := make([]*models.EventDTO, 0, len(eventIDs))
-	for eventID := range eventIDs {
-		dto, err := er.GetByID(ctx, eventID)
-		if err != nil {
-			log.Printf("failed to fetch event %s for city %s: %v\n", eventID, city, err)
-			continue
-		}
-		if dto == nil {
-			continue
-		}
-		results = append(results, dto)
-	}
-
-	return results, nil
+	return er.BatchGetEvents(ctx, eventIDs)
 }
 
-func (er *EventRepositoryDDB) GetEventsHostedByHost(ctx context.Context, hostID string) ([]models.EventDTO, error) {
-	hostSK := "HOST#" + hostID
+func (er *EventRepositoryDDB) BatchGetEvents(ctx context.Context, eventIDs []string) ([]*models.EventDTO, error) {
+	if len(eventIDs) == 0 {
+		return []*models.EventDTO{}, nil
+	}
 
-	venueScan := &dynamodb.ScanInput{
-		TableName:        aws.String(er.TableName),
-		FilterExpression: aws.String("begins_with(pk, :vp) AND sk = :h"),
+	events := []*models.EventDTO{}
+
+	for start := 0; start < len(eventIDs); start += 100 {
+		end := start + 100
+		if end > len(eventIDs) {
+			end = len(eventIDs)
+		}
+
+		chunk := eventIDs[start:end]
+		keys := make([]map[string]types.AttributeValue, 0, len(chunk))
+		for _, id := range chunk {
+			pk := id
+			if !strings.HasPrefix(id, "EVENT#") {
+				pk = "EVENT#" + id
+			}
+			keys = append(keys, map[string]types.AttributeValue{
+				"pk": &types.AttributeValueMemberS{Value: pk},
+				"sk": &types.AttributeValueMemberS{Value: "DETAILS"},
+			})
+		}
+
+		req := &dynamodb.BatchGetItemInput{
+			RequestItems: map[string]types.KeysAndAttributes{
+				er.TableName: {
+					Keys: keys,
+				},
+			},
+		}
+
+		for {
+			resp, err := er.db.BatchGetItem(ctx, req)
+			if err != nil {
+				return nil, fmt.Errorf("batch get error: %w", err)
+			}
+
+			// Unmarshal found items
+			for _, item := range resp.Responses[er.TableName] {
+				var eddb EventDDB
+				if err := attributevalue.UnmarshalMap(item, &eddb); err != nil {
+					continue
+				}
+
+				eventID := strings.TrimPrefix(eddb.EventID, "EVENT#")
+
+				events = append(events, &models.EventDTO{
+					EventID:     eventID,
+					EventName:   eddb.EventName,
+					Description: eddb.Description,
+					Duration:    eddb.Duration,
+					Category:    eddb.Category,
+					IsBlocked:   eddb.IsBlocked,
+					ArtistIDs:   eddb.ArtistIDs,
+					ArtistNames: eddb.ArtistNames,
+				})
+			}
+
+			unprocessed := resp.UnprocessedKeys
+			u := unprocessed[er.TableName]
+
+			if len(u.Keys) == 0 {
+				break
+			}
+
+			req.RequestItems = map[string]types.KeysAndAttributes{
+				er.TableName: {
+					Keys: u.Keys,
+				},
+			}
+		}
+	}
+
+	return events, nil
+}
+
+func (er *EventRepositoryDDB) GetEventsHostedByHost(ctx context.Context, hostID string) ([]*models.EventDTO, error) {
+	pk := "HOST#" + hostID
+	skPrefix := "EVENT#"
+
+	out, err := er.db.Query(ctx, &dynamodb.QueryInput{
+		TableName:              aws.String(er.TableName),
+		KeyConditionExpression: aws.String("pk = :pk AND begins_with(sk, :sk)"),
 		ExpressionAttributeValues: map[string]types.AttributeValue{
-			":vp": &types.AttributeValueMemberS{Value: "VENUE#"},
-			":h":  &types.AttributeValueMemberS{Value: hostSK},
+			":pk": &types.AttributeValueMemberS{Value: pk},
+			":sk": &types.AttributeValueMemberS{Value: skPrefix},
 		},
-		ProjectionExpression: aws.String("pk"),
+	})
+	if err != nil {
+		return nil, err
 	}
 
-	var venueIDs []string
-	venuePg := dynamodb.NewScanPaginator(er.db, venueScan)
-
-	for venuePg.HasMorePages() {
-		page, err := venuePg.NextPage(ctx)
-		if err != nil {
+	eventIDs := []string{}
+	for _, item := range out.Items {
+		var row struct {
+			SK string `dynamodbav:"sk"`
+		}
+		if err := attributevalue.UnmarshalMap(item, &row); err != nil {
 			return nil, err
 		}
 
-		for _, item := range page.Items {
-			var rec struct {
-				PK string `dynamodbav:"pk"`
-			}
-			if err := attributevalue.UnmarshalMap(item, &rec); err != nil {
-				continue
-			}
-			venueIDs = append(venueIDs, strings.TrimPrefix(rec.PK, "VENUE#"))
-		}
+		eventIDs = append(eventIDs, strings.TrimPrefix(row.SK, "EVENT#"))
+
 	}
-
-	if len(venueIDs) == 0 {
-		return []models.EventDTO{}, nil
-	}
-
-	exprVals := map[string]types.AttributeValue{
-		":show": &types.AttributeValueMemberS{Value: "SHOW#"},
-		":host": &types.AttributeValueMemberS{Value: hostID},
-	}
-
-	var inList []string
-	for i, vid := range venueIDs {
-		key := fmt.Sprintf(":v%d", i)
-		exprVals[key] = &types.AttributeValueMemberS{Value: vid}
-		inList = append(inList, key)
-	}
-
-	filter := fmt.Sprintf("begins_with(pk, :show) AND host_id = :host AND venue_id IN (%s)", strings.Join(inList, ", "))
-
-	showScan := &dynamodb.ScanInput{
-		TableName:                 aws.String(er.TableName),
-		FilterExpression:          aws.String(filter),
-		ExpressionAttributeValues: exprVals,
-		ProjectionExpression:      aws.String("event_id"),
-	}
-
-	eventSet := make(map[string]struct{})
-	showPg := dynamodb.NewScanPaginator(er.db, showScan)
-
-	for showPg.HasMorePages() {
-		page, err := showPg.NextPage(ctx)
-		if err != nil {
-			return nil, err
-		}
-
-		for _, item := range page.Items {
-			var rec struct {
-				EventID string `dynamodbav:"event_id"`
-			}
-			if err := attributevalue.UnmarshalMap(item, &rec); err != nil {
-				continue
-			}
-			if rec.EventID != "" {
-				eventSet[rec.EventID] = struct{}{}
-			}
-		}
-	}
-
-	if len(eventSet) == 0 {
-		return []models.EventDTO{}, nil
-	}
-	var results []models.EventDTO
-	for eid := range eventSet {
-		dto, err := er.GetByID(ctx, eid)
-		if err != nil {
-			continue
-		}
-		results = append(results, *dto)
-	}
-
-	return results, nil
+	return er.BatchGetEvents(ctx, eventIDs)
 }
 
 func (er *EventRepositoryDDB) GetEventsByName(ctx context.Context, name string) ([]*models.EventDTO, error) {
@@ -392,17 +365,26 @@ func (er *EventRepositoryDDB) GetEventsByName(ctx context.Context, name string) 
 	if len(ids) == 0 {
 		return []*models.EventDTO{}, nil
 	}
-
-	var events []*models.EventDTO
-
-	for _, id := range ids {
-		dto, err := er.GetByID(ctx, id)
-		if err != nil {
-			continue
-		}
-		events = append(events, dto)
+	return er.BatchGetEvents(ctx, ids)
+}
+func (er *EventRepositoryDDB) GetBlockedEvents(ctx context.Context) ([]*models.EventDTO, error) {
+	ids, err := er.SearchByName(ctx, "")
+	if err != nil {
+		return nil, fmt.Errorf("error from SearchByName: %s", err.Error())
 	}
-	return events, nil
+	if len(ids) == 0 {
+		return []*models.EventDTO{}, nil
+	}
+
+	var eventsDTO []*models.EventDTO
+	events, _ := er.BatchGetEvents(ctx, ids)
+
+	for _, event := range events {
+		if event.IsBlocked {
+			eventsDTO = append(eventsDTO, event)
+		}
+	}
+	return eventsDTO, nil
 
 }
 
@@ -425,7 +407,11 @@ func (er *EventRepositoryDDB) SearchByName(ctx context.Context, namePrefix strin
 
 	eventIDs := []string{}
 	for _, item := range out.Items {
-		sk := item["sk"].(*types.AttributeValueMemberS).Value
+		attr, ok := item["sk"].(*types.AttributeValueMemberS)
+		if !ok {
+			continue
+		}
+		sk := attr.Value
 
 		parts := strings.SplitN(sk, "EVENT_ID#", 2)
 		if len(parts) != 2 {
