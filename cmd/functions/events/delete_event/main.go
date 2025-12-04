@@ -9,12 +9,13 @@ import (
 	eventservice "eventro_aws/internals/services/event_service"
 	customresponse "eventro_aws/internals/utils"
 	"fmt"
+	"strings"
 
 	"github.com/aws/aws-lambda-go/events"
 	"github.com/aws/aws-lambda-go/lambda"
 )
 
-var eventService eventservice.EventService
+var eventService eventservice.EventServiceI
 
 func init() {
 	ddb, err := db.InitDB()
@@ -33,7 +34,7 @@ func main() {
 func deleteEvent(ctx context.Context, event events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
 
 	role, err := authenticationmiddleware.GetUserRole(ctx)
-	if err != nil || role != "Admin" {
+	if err != nil || strings.ToLower(role) != "admin" {
 		return customresponse.SendCustomResponse(403, "only admin can delete event")
 
 	}

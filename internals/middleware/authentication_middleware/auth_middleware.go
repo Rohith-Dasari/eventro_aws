@@ -68,5 +68,6 @@ func GetUserRole(ctx context.Context) (string, error) {
 	if !ok {
 		return "", errors.New("userRole not found in context")
 	}
+	role = strings.ToLower(role)
 	return role, nil
 }

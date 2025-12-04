@@ -24,7 +24,7 @@ type CreateVenueRequest struct {
 	IsSeatLayoutRequired bool   `json:"is_seat_layout_required"`
 }
 
-var venueService venueservice.VenueService
+var venueService venueservice.VenueServiceI
 
 func init() {
 	ddb, err := db.InitDB()

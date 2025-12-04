@@ -6,7 +6,7 @@ import (
 )
 
 //go:generate mockgen -destination=../../mocks/event_repository_mock.go -package=mocks -source=interface.go
-type EventRepository interface {
+type EventRepositoryI interface {
 	Create(ctx context.Context, event *models.Event) error
 	GetByID(ctx context.Context, eventID string) (*models.EventDTO, error)
 	Update(ctx context.Context, eventID string, isBlocked bool) error

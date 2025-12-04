@@ -18,7 +18,7 @@ import (
 	"github.com/aws/aws-lambda-go/lambda"
 )
 
-var eventService eventservice.EventService
+var eventService eventservice.EventServiceI
 
 type CreateEventRequest struct {
 	Name        string   `json:"name"`

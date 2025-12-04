@@ -13,8 +13,8 @@ type Artistservice struct {
 	ArtistRepo artistrepository.ArtistRepositoryI
 }
 
-func NewArtistService(artistRepo artistrepository.ArtistRepositoryI) Artistservice {
-	return Artistservice{
+func NewArtistService(artistRepo artistrepository.ArtistRepositoryI) *Artistservice {
+	return &Artistservice{
 		ArtistRepo: artistRepo,
 	}
 }

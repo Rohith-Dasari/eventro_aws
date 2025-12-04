@@ -20,7 +20,7 @@ type UpdateShowRequest struct {
 	IsBlocked bool `json:"is_blocked,omitempty"`
 }
 
-var showService showservice.ShowService
+var showService showservice.ShowServiceI
 
 func init() {
 	ddb, err := db.InitDB()

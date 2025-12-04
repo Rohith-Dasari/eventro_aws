@@ -5,19 +5,21 @@ import (
 	"eventro_aws/internals/models"
 	eventsrepository "eventro_aws/internals/repository/event_repository"
 	"fmt"
+	"strings"
 
 	"github.com/google/uuid"
 )
 
 type EventService struct {
-	EventRepo eventsrepository.EventRepository
+	EventRepo eventsrepository.EventRepositoryI
 }
 
-func NewEventService(eventRepo eventsrepository.EventRepository) EventService {
-	return EventService{EventRepo: eventRepo}
+func NewEventService(eventRepo eventsrepository.EventRepositoryI) *EventService {
+	return &EventService{EventRepo: eventRepo}
 }
 
 func (e *EventService) CreateNewEvent(ctx context.Context, name, description, duration string, category models.EventCategory, artistIDs []string) (models.EventResponse, error) {
+	name = strings.ToLower(name)
 	eventID := uuid.New().String()
 	event := models.Event{
 		ID:          eventID,
@@ -56,6 +58,7 @@ func (s *EventService) BrowseEvents(ctx context.Context, city, name string, bloc
 	}
 
 	if name != "" {
+		name = strings.ToLower(name)
 		events, err = s.EventRepo.GetEventsByName(ctx, name)
 
 		if err != nil {
@@ -98,7 +101,6 @@ func (e *EventService) UpdateEvent(ctx context.Context, eventID string, isBlocke
 	// }
 	// event.IsBlocked = isBlocked
 
-	// Save updated event
 	if err := e.EventRepo.Update(ctx, eventID, isBlocked); err != nil {
 		return err
 	}

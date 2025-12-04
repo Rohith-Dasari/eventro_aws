@@ -15,7 +15,7 @@ import (
 	"github.com/aws/aws-lambda-go/lambda"
 )
 
-var authService authorisation.AuthService
+var authService authorisation.AuthServiceI
 
 func init() {
 	ddb, err := db.InitDB()
@@ -24,7 +24,7 @@ func init() {
 	}
 
 	userRepo := userrepository.NewUserRepoDDB(ddb, "eventro")
-	authService = *authorisation.NewAuthService(userRepo)
+	authService = authorisation.NewAuthService(userRepo)
 }
 
 func main() {

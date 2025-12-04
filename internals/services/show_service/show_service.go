@@ -18,8 +18,8 @@ type ShowService struct {
 
 func NewShowService(
 	showRepo showrepository.ShowRepositoryI,
-) ShowService {
-	return ShowService{
+) *ShowService {
+	return &ShowService{
 		ShowRepo: showRepo,
 	}
 }
@@ -85,4 +85,14 @@ func (s *ShowService) CreateShow(ctx context.Context, eventID string, venueID st
 	}
 
 	return nil
+}
+
+func (s *ShowService) GetShowByID(ctx context.Context, showID string) (*models.ShowDTO, error) {
+	var show *models.ShowDTO
+	var err error
+
+	if show, err = s.ShowRepo.GetByID(ctx, showID); err != nil {
+		return &models.ShowDTO{}, fmt.Errorf("failed to retrieve show: %w", err)
+	}
+	return show, nil
 }

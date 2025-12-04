@@ -11,11 +11,11 @@ import (
 )
 
 type UserService struct {
-	UserRepo userrepository.UserRepository
+	UserRepo userrepository.UserRepositoryI
 }
 
-func NewUserService(userRepo userrepository.UserRepository) UserService {
-	return UserService{UserRepo: userRepo}
+func NewUserService(userRepo userrepository.UserRepositoryI) *UserService {
+	return &UserService{UserRepo: userRepo}
 }
 
 func (s *UserService) BrowseUsers(ctx context.Context, userID string, blocked *bool) ([]models.User, error) {

@@ -11,6 +11,7 @@ import (
 	customresponse "eventro_aws/internals/utils"
 	"fmt"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/aws/aws-lambda-go/events"
@@ -25,7 +26,7 @@ type CreateShowRequest struct {
 	ShowTime string  `json:"show_time"`
 }
 
-var showService showservice.ShowService
+var showService showservice.ShowServiceI
 
 func init() {
 	ddb, err := db.InitDB()
@@ -52,7 +53,7 @@ func CreateShow(ctx context.Context, event events.APIGatewayProxyRequest) (event
 	if err != nil {
 		return customresponse.LambdaError(403, "unable to get role")
 	}
-	if role != "Host" {
+	if strings.ToLower(role) != "host" {
 		return customresponse.LambdaError(403, "Only admin and host authorised")
 	}
 

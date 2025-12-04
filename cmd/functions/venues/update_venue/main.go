@@ -21,7 +21,7 @@ type UpdateVenueRequest struct {
 	IsBlocked bool `json:"is_blocked,omitempty"`
 }
 
-var venueService venueservice.VenueService
+var venueService venueservice.VenueServiceI
 
 func init() {
 	ddb, err := db.InitDB()

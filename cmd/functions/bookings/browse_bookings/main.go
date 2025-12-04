@@ -11,12 +11,13 @@ import (
 	customresponse "eventro_aws/internals/utils"
 	"fmt"
 	"net/http"
+	"strings"
 
 	"github.com/aws/aws-lambda-go/events"
 	"github.com/aws/aws-lambda-go/lambda"
 )
 
-var bookingService bookingservice.BookingService
+var bookingService bookingservice.BookingServiceI
 
 func init() {
 	ddb, err := db.InitDB()
@@ -43,7 +44,7 @@ func GetBookingsOfUser(ctx context.Context, event events.APIGatewayProxyRequest)
 		return customresponse.LambdaError(400, "userID is required")
 	}
 
-	if role != "admin" {
+	if strings.ToLower(role) != "admin" {
 		userID = authUserID
 	}
 

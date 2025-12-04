@@ -15,7 +15,7 @@ import (
 	"github.com/aws/aws-lambda-go/lambda"
 )
 
-var eventService eventservice.EventService
+var eventService eventservice.EventServiceI
 
 func init() {
 	ddb, err := db.InitDB()

@@ -11,12 +11,13 @@ import (
 	customresponse "eventro_aws/internals/utils"
 	"fmt"
 	"net/http"
+	"strings"
 
 	"github.com/aws/aws-lambda-go/events"
 	"github.com/aws/aws-lambda-go/lambda"
 )
 
-var artistService artistservice.Artistservice
+var artistService artistservice.ArtistServiceI
 
 func init() {
 	ddb, err := db.InitDB()
@@ -46,7 +47,7 @@ type CreateArtistResponse struct {
 func CreateArtist(ctx context.Context, event events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
 
 	role, err := authenticationmiddleware.GetUserRole(ctx)
-	if err != nil || role != "Admin" {
+	if err != nil || strings.ToLower(role) != "admin" {
 		return customresponse.LambdaError(http.StatusForbidden, "forbidden: admin only")
 
 	}

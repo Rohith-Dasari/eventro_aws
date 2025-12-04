@@ -20,8 +20,8 @@ type BookingService struct {
 }
 
 func NewBookingService(bRepo bookingrepository.BookingRepositoryI,
-	sRepo showrepository.ShowRepositoryI) BookingService {
-	return BookingService{
+	sRepo showrepository.ShowRepositoryI) *BookingService {
+	return &BookingService{
 		BookingRepo: bRepo,
 		ShowRepo:    sRepo,
 	}

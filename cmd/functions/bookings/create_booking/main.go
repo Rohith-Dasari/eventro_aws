@@ -12,12 +12,13 @@ import (
 	customresponse "eventro_aws/internals/utils"
 	"fmt"
 	"net/http"
+	"strings"
 
 	"github.com/aws/aws-lambda-go/events"
 	"github.com/aws/aws-lambda-go/lambda"
 )
 
-var bookingService bookingservice.BookingService
+var bookingService bookingservice.BookingServiceI
 
 func init() {
 	ddb, err := db.InitDB()
@@ -43,7 +44,7 @@ type CreateBookingRequest struct {
 func CreateBooking(ctx context.Context, event events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
 
 	role, err := authenticationmiddleware.GetUserRole(ctx)
-	if err != nil || (role != "Customer" && role != "Admin") {
+	if err != nil || (strings.ToLower(role) != "customer" && strings.ToLower(role) != "admin") {
 		return customresponse.SendCustomResponse(http.StatusForbidden, "only customers or admin for customers make booking")
 	}
 	authUserID, err := authenticationmiddleware.GetUserEmail(ctx)
@@ -60,7 +61,7 @@ func CreateBooking(ctx context.Context, event events.APIGatewayProxyRequest) (ev
 		return customresponse.SendCustomResponse(400, "invalid request")
 	}
 	userID := authUserID
-	if role == "Admin" && req.UserID != "" {
+	if strings.ToLower(role) == "admin" && req.UserID != "" {
 		userID = req.UserID
 	}
 

@@ -11,11 +11,11 @@ import (
 )
 
 type VenueService struct {
-	VenueRepo venuerepository.VenueRepository
+	VenueRepo venuerepository.VenueRepositoryI
 }
 
-func NewVenueService(repo venuerepository.VenueRepository) VenueService {
-	return VenueService{VenueRepo: repo}
+func NewVenueService(repo venuerepository.VenueRepositoryI) *VenueService {
+	return &VenueService{VenueRepo: repo}
 }
 
 func (vs *VenueService) CreateVenue(ctx context.Context, hostID, name, city, state string, isSeatLayoutRequired bool) (models.VenueResponse, error) {
@@ -66,7 +66,7 @@ func (s *VenueService) DeleteVenue(ctx context.Context, venueID, userID, userRol
 		return err
 	}
 
-	if venue.HostID != userID && userRole != "admin" {
+	if venue.HostID != userID && strings.ToLower(userRole) != "admin" {
 		return fmt.Errorf("forbidden: cannot delete this venue")
 	}
 

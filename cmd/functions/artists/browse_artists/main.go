@@ -15,7 +15,7 @@ import (
 	"github.com/aws/aws-lambda-go/lambda"
 )
 
-var artistService artistservice.Artistservice
+var artistService artistservice.ArtistServiceI
 
 func init() {
 	ddb, err := db.InitDB()
@@ -32,7 +32,6 @@ func main() {
 }
 
 func BrowseArtists(ctx context.Context, event events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
-	// name := event.QueryStringParameters["name"]
 	artistID := event.PathParameters["artistID"]
 	if artistID != "" {
 		artist, err := artistService.GetArtistByID(ctx, artistID)

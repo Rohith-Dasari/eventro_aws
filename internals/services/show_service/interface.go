@@ -12,4 +12,5 @@ type ShowServiceI interface {
 	CreateShow(ctx context.Context, eventID string, venueID string,
 		hostID string, price float64, showDate time.Time,
 		showTime string) error
+	GetShowByID(ctx context.Context, showID string) (*models.ShowDTO, error)
 }

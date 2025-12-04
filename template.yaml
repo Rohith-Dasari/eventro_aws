@@ -262,13 +262,30 @@ Resources:
     Metadata:
       BuildMethod: go1.x
     Properties:
-      CodeUri: ./cmd/functions/shows/browse_show
+      CodeUri: ./cmd/functions/shows/browse_shows
       Events:
         ApiEvent:
           Type: Api
           Properties:
             Method: get
             Path: /shows
+            RestApiId: !Ref Api
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: eventro
+
+  GetShowByID:
+    Type: AWS::Serverless::Function
+    Metadata:
+      BuildMethod: go1.x
+    Properties:
+      CodeUri: ./cmd/functions/shows/get_show
+      Events:
+        ApiEvent:
+          Type: Api
+          Properties:
+            Method: get
+            Path: /shows/{showID}
             RestApiId: !Ref Api
       Policies:
         - DynamoDBCrudPolicy:

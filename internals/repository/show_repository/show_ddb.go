@@ -45,7 +45,14 @@ func (r *ShowRepositoryDDB) Create(ctx context.Context, show *models.Show) error
 	showDateTime := show.ShowDate.Format("2006-01-02") + "T" + show.ShowTime
 	venueRepo := venuerepository.NewVenueRepositoryDDB(r.db, r.TableName)
 	venue, _ := venueRepo.GetByID(ctx, show.VenueID)
+	layout := "2006-01-02T15:04"
 	city := venue.City
+	t, err := time.ParseInLocation(layout, showDateTime, time.UTC)
+	if err != nil {
+		return fmt.Errorf("error parsing time: %v", err)
+	}
+
+	expires_at := t.Unix()
 
 	showItem := map[string]any{
 		"pk":             "SHOW#" + show.ID,
@@ -59,6 +66,7 @@ func (r *ShowRepositoryDDB) Create(ctx context.Context, show *models.Show) error
 		"booked_seats":   show.BookedSeats,
 		"is_blocked":     show.IsBlocked,
 		"host_id":        show.HostID,
+		"expires_at":     expires_at,
 	}
 
 	// showItem := ShowDDB{
@@ -113,7 +121,7 @@ func (r *ShowRepositoryDDB) Create(ctx context.Context, show *models.Show) error
 		return fmt.Errorf("failed to unmarshal event details: %w", err)
 	}
 
-	cityEventItem := map[string]interface{}{
+	cityEventItem := map[string]any{
 		"pk":          "CITY#" + city,
 		"sk":          "EVENT#" + show.EventID,
 		"event_name":  eventRec.EventName,
@@ -122,6 +130,7 @@ func (r *ShowRepositoryDDB) Create(ctx context.Context, show *models.Show) error
 		"category":    eventRec.Category,
 		"is_blocked":  eventRec.IsBlocked,
 		"artist_ids":  eventRec.ArtistIDs,
+		"expires_at":  expires_at,
 	}
 
 	av2, err := attributevalue.MarshalMap(cityEventItem)
@@ -138,11 +147,12 @@ func (r *ShowRepositoryDDB) Create(ctx context.Context, show *models.Show) error
 	pk3 := "EVENT#" + show.EventID + "#CITY#" + city
 	sk3 := "DATE#" + showDateTime + "#VENUE#" + show.VenueID + "#SHOW#" + show.ID
 
-	eventDateItem := map[string]interface{}{
+	eventDateItem := map[string]any{
 		"pk":         pk3,
 		"sk":         sk3,
 		"is_blocked": show.IsBlocked,
 		"price":      show.Price,
+		"expires_at": expires_at,
 	}
 
 	av3, err := attributevalue.MarshalMap(eventDateItem)
@@ -175,7 +185,7 @@ func (r *ShowRepositoryDDB) GetByID(ctx context.Context, id string) (*models.Sho
 		return nil, fmt.Errorf("failed to get show: %w", err)
 	}
 	if out.Item == nil {
-		return nil, fmt.Errorf("show not found: %s", id)
+		return nil, nil
 	}
 
 	var showDDB ShowDDB
@@ -258,6 +268,9 @@ func (r *ShowRepositoryDDB) ListByEvent(ctx context.Context, eventID, city, date
 		fullShow, err := r.GetByID(ctx, showID)
 		if err != nil {
 			return nil, fmt.Errorf("failed to fetch show details: %w", err)
+		}
+		if fullShow == nil {
+			continue
 		}
 
 		fullShow.Price = row.Price

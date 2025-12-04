@@ -15,7 +15,7 @@ import (
 	"github.com/aws/aws-lambda-go/lambda"
 )
 
-var userService userservice.UserService
+var userService userservice.UserServiceI
 
 func init() {
 	ddb, err := db.InitDB()

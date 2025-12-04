@@ -15,7 +15,7 @@ import (
 	"github.com/aws/aws-lambda-go/lambda"
 )
 
-var venueService venueservice.VenueService
+var venueService venueservice.VenueServiceI
 
 func init() {
 	ddb, err := db.InitDB()

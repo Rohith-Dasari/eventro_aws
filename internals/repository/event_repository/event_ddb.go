@@ -252,17 +252,10 @@ func (er *EventRepositoryDDB) GetEventsByCity(ctx context.Context, city string) 
 		return []*models.EventDTO{}, nil
 	}
 
-	var results []*models.EventDTO
+	eventIDs := make(map[string]struct{})
 	for _, item := range resp.Items {
 		var dbRec struct {
-			PK          string   `dynamodbav:"pk"`
-			SK          string   `dynamodbav:"sk"`
-			EventName   string   `dynamodbav:"event_name"`
-			Description string   `dynamodbav:"description"`
-			Duration    string   `dynamodbav:"duration"`
-			Category    string   `dynamodbav:"category"`
-			IsBlocked   bool     `dynamodbav:"is_blocked"`
-			ArtistIDs   []string `dynamodbav:"artist_ids"`
+			SK string `dynamodbav:"sk"`
 		}
 		if err := attributevalue.UnmarshalMap(item, &dbRec); err != nil {
 			log.Printf("failed to unmarshal item for city %s: %v\n", city, err)
@@ -270,40 +263,25 @@ func (er *EventRepositoryDDB) GetEventsByCity(ctx context.Context, city string) 
 		}
 
 		eventID := strings.TrimPrefix(dbRec.SK, "EVENT#")
-
-		var artistNames []string
-		for _, artistID := range dbRec.ArtistIDs {
-			artistPK := "ARTIST#" + artistID
-			artistResp, aerr := er.db.Query(ctx, &dynamodb.QueryInput{
-				TableName:              aws.String(er.TableName),
-				KeyConditionExpression: aws.String("pk = :pk AND begins_with(sk, :skPrefix)"),
-				ExpressionAttributeValues: map[string]types.AttributeValue{
-					":pk":       &types.AttributeValueMemberS{Value: artistPK},
-					":skPrefix": &types.AttributeValueMemberS{Value: "NAME"},
-				},
-				Limit: aws.Int32(1),
-			})
-			if aerr != nil || len(artistResp.Items) == 0 {
-				continue
-			}
-			var artistRec struct {
-				ArtistName string `dynamodbav:"sk"`
-				ArtistBio  string `dynamodbav:"bio"`
-			}
-			if err := attributevalue.UnmarshalMap(artistResp.Items[0], &artistRec); err != nil {
-				continue
-			}
-			artistNames = append(artistNames, artistRec.ArtistName)
+		if eventID == "" {
+			continue
 		}
+		eventIDs[eventID] = struct{}{}
+	}
 
-		dto := &models.EventDTO{
-			EventID:     eventID,
-			EventName:   dbRec.EventName,
-			Description: dbRec.Description,
-			Duration:    dbRec.Duration,
-			Category:    dbRec.Category,
-			IsBlocked:   dbRec.IsBlocked,
-			ArtistNames: artistNames,
+	if len(eventIDs) == 0 {
+		return []*models.EventDTO{}, nil
+	}
+
+	results := make([]*models.EventDTO, 0, len(eventIDs))
+	for eventID := range eventIDs {
+		dto, err := er.GetByID(ctx, eventID)
+		if err != nil {
+			log.Printf("failed to fetch event %s for city %s: %v\n", eventID, city, err)
+			continue
+		}
+		if dto == nil {
+			continue
 		}
 		results = append(results, dto)
 	}

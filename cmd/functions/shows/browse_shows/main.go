@@ -16,7 +16,7 @@ import (
 	"github.com/aws/aws-lambda-go/lambda"
 )
 
-var showService showservice.ShowService
+var showService showservice.ShowServiceI
 
 func init() {
 	ddb, err := db.InitDB()
