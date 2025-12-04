@@ -10,6 +10,7 @@ import (
 	eventservice "eventro_aws/internals/services/event_service"
 	customresponse "eventro_aws/internals/utils"
 	"fmt"
+	"net/http"
 
 	"github.com/aws/aws-lambda-go/events"
 	"github.com/aws/aws-lambda-go/lambda"
@@ -44,8 +45,5 @@ func GetEventByID(ctx context.Context, event events.APIGatewayProxyRequest) (eve
 		return customresponse.LambdaError(500, "failed to marshal events")
 	}
 
-	return events.APIGatewayProxyResponse{
-		StatusCode: 200,
-		Body:       string(body),
-	}, nil
+	return customresponse.SendCustomResponse(http.StatusOK, "successfully retrived event", body)
 }

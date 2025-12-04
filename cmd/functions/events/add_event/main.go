@@ -64,7 +64,7 @@ func CreateEvent(ctx context.Context, event events.APIGatewayProxyRequest) (even
 		return customresponse.LambdaError(500, err.Error())
 	}
 
-	return customresponse.SendCustomResponse(200, createdEvent)
+	return customresponse.SendCustomResponse(200, "successfully created", createdEvent)
 
 }
 

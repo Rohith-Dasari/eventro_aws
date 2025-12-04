@@ -35,20 +35,20 @@ func deleteEvent(ctx context.Context, event events.APIGatewayProxyRequest) (even
 
 	role, err := authenticationmiddleware.GetUserRole(ctx)
 	if err != nil || strings.ToLower(role) != "admin" {
-		return customresponse.SendCustomResponse(403, "only admin can delete event")
+		return customresponse.LambdaError(403, "only admin can delete event")
 
 	}
 
 	eventID := event.QueryStringParameters["eventID"]
 	if eventID == "" {
-		return customresponse.SendCustomResponse(400, "eventID is required in path")
+		return customresponse.LambdaError(400, "eventID is required in path")
 	}
 
 	err = eventService.DeleteEvent(ctx, eventID)
 	if err != nil {
-		return customresponse.SendCustomResponse(500, "Failed to delete event")
+		return customresponse.LambdaError(500, "Failed to delete event")
 
 	}
 
-	return customresponse.SendCustomResponse(200, "successfully deleted")
+	return customresponse.SendCustomResponse(200, "successfully deleted", nil)
 }

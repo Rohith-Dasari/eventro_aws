@@ -53,5 +53,5 @@ func DeleteVenue(ctx context.Context, event events.APIGatewayProxyRequest) (even
 		return customresponse.LambdaError(http.StatusInternalServerError, err.Error())
 	}
 
-	return customresponse.SendCustomResponse(http.StatusOK, "Successfully deleted")
+	return customresponse.SendCustomResponse(http.StatusOK, "Successfully deleted", nil)
 }

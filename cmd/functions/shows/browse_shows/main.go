@@ -50,5 +50,5 @@ func BrowseShows(ctx context.Context, event events.APIGatewayProxyRequest) (even
 		return customresponse.LambdaError(http.StatusInternalServerError, err.Error())
 	}
 
-	return customresponse.SendCustomResponse(http.StatusOK, shows)
+	return customresponse.SendCustomResponse(http.StatusOK, "successfully retrieved", shows)
 }

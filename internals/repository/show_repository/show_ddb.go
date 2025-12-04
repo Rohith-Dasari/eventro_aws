@@ -41,139 +41,138 @@ type ShowDDB struct {
 
 func (r *ShowRepositoryDDB) Create(ctx context.Context, show *models.Show) error {
 
-	createdAt := show.CreatedAt.Format(time.RFC3339)
-	showDateTime := show.ShowDate.Format("2006-01-02") + "T" + show.ShowTime
-	venueRepo := venuerepository.NewVenueRepositoryDDB(r.db, r.TableName)
-	venue, _ := venueRepo.GetByID(ctx, show.VenueID)
-	layout := "2006-01-02T15:04"
-	city := venue.City
-	t, err := time.ParseInLocation(layout, showDateTime, time.UTC)
-	if err != nil {
-		return fmt.Errorf("error parsing time: %v", err)
-	}
+    createdAt := show.CreatedAt.Format(time.RFC3339)
+    showDateTime := show.ShowDate.Format("2006-01-02") + "T" + show.ShowTime
 
-	expires_at := t.Unix()
+    venueRepo := venuerepository.NewVenueRepositoryDDB(r.db, r.TableName)
+    venue, _ := venueRepo.GetByID(ctx, show.VenueID)
+    city := venue.City
 
-	showItem := map[string]any{
-		"pk":             "SHOW#" + show.ID,
-		"sk":             "DETAILS",
-		"city":           city,
-		"venue_id":       show.VenueID,
-		"event_id":       show.EventID,
-		"created_at":     createdAt,
-		"price":          show.Price,
-		"show_date_time": showDateTime,
-		"booked_seats":   show.BookedSeats,
-		"is_blocked":     show.IsBlocked,
-		"host_id":        show.HostID,
-		"expires_at":     expires_at,
-	}
+    layout := "2006-01-02T15:04"
+    t, err := time.ParseInLocation(layout, showDateTime, time.UTC)
+    if err != nil {
+        return fmt.Errorf("error parsing time: %v", err)
+    }
+    expires_at := t.Unix()
 
-	av1, err := attributevalue.MarshalMap(showItem)
-	if err != nil {
-		return fmt.Errorf("failed to marshal show item: %w", err)
-	}
-	if _, err := r.db.PutItem(ctx, &dynamodb.PutItemInput{
-		TableName: aws.String(r.TableName),
-		Item:      av1,
-	}); err != nil {
-		return fmt.Errorf("failed to put SHOW item: %w", err)
-	}
+    // SHOW ITEM
+    showItem := map[string]any{
+        "pk":             "SHOW#" + show.ID,
+        "sk":             "DETAILS",
+        "city":           city,
+        "venue_id":       show.VenueID,
+        "event_id":       show.EventID,
+        "created_at":     createdAt,
+        "price":          show.Price,
+        "show_date_time": showDateTime,
+        "booked_seats":   show.BookedSeats,
+        "is_blocked":     show.IsBlocked,
+        "host_id":        show.HostID,
+        "expires_at":     expires_at,
+    }
 
-	eventPK := "EVENT#" + show.EventID
+    avShow, _ := attributevalue.MarshalMap(showItem)
 
-	evtOut, err := r.db.GetItem(ctx, &dynamodb.GetItemInput{
-		TableName: aws.String(r.TableName),
-		Key: map[string]types.AttributeValue{
-			"pk": &types.AttributeValueMemberS{Value: eventPK},
-			"sk": &types.AttributeValueMemberS{Value: "DETAILS"},
-		},
-	})
-	if err != nil {
-		return fmt.Errorf("failed to fetch event details: %w", err)
-	}
-	if evtOut.Item == nil {
-		return fmt.Errorf("event does not exist: %s", show.EventID)
-	}
+    // FETCH EVENT DETAILS (outside transaction, ok)
+    eventPK := "EVENT#" + show.EventID
+    evtOut, err := r.db.GetItem(ctx, &dynamodb.GetItemInput{
+        TableName: aws.String(r.TableName),
+        Key: map[string]types.AttributeValue{
+            "pk": &types.AttributeValueMemberS{Value: eventPK},
+            "sk": &types.AttributeValueMemberS{Value: "DETAILS"},
+        },
+    })
+    if err != nil {
+        return err
+    }
+    if evtOut.Item == nil {
+        return fmt.Errorf("event does not exist: %s", show.EventID)
+    }
 
-	var eventRec struct {
-		EventName   string   `dynamodbav:"event_name"`
-		Description string   `dynamodbav:"description"`
-		Duration    string   `dynamodbav:"duration"`
-		Category    string   `dynamodbav:"category"`
-		IsBlocked   bool     `dynamodbav:"is_blocked"`
-		ArtistIDs   []string `dynamodbav:"artist_ids"`
-	}
-	if err := attributevalue.UnmarshalMap(evtOut.Item, &eventRec); err != nil {
-		return fmt.Errorf("failed to unmarshal event details: %w", err)
-	}
+    var eventRec struct {
+        EventName   string   `dynamodbav:"event_name"`
+        Description string   `dynamodbav:"description"`
+        Duration    string   `dynamodbav:"duration"`
+        Category    string   `dynamodbav:"category"`
+        IsBlocked   bool     `dynamodbav:"is_blocked"`
+        ArtistIDs   []string `dynamodbav:"artist_ids"`
+    }
+    attributevalue.UnmarshalMap(evtOut.Item, &eventRec)
 
-	cityEventItem := map[string]any{
-		"pk":          "CITY#" + city,
-		"sk":          "EVENT#" + show.EventID,
-		"event_name":  eventRec.EventName,
-		"description": eventRec.Description,
-		"duration":    eventRec.Duration,
-		"category":    eventRec.Category,
-		"is_blocked":  eventRec.IsBlocked,
-		"artist_ids":  eventRec.ArtistIDs,
-		"expires_at":  expires_at,
-	}
+    // CITY → EVENT ITEM
+    cityEventItem := map[string]any{
+        "pk":          "CITY#" + city,
+        "sk":          "EVENT#" + show.EventID,
+        "event_name":  eventRec.EventName,
+        "description": eventRec.Description,
+        "duration":    eventRec.Duration,
+        "category":    eventRec.Category,
+        "is_blocked":  eventRec.IsBlocked,
+        "artist_ids":  eventRec.ArtistIDs,
+        "expires_at":  expires_at,
+    }
+    avCityEvent, _ := attributevalue.MarshalMap(cityEventItem)
 
-	av2, err := attributevalue.MarshalMap(cityEventItem)
-	if err != nil {
-		return fmt.Errorf("failed to marshal city-event item: %w", err)
-	}
-	if _, err := r.db.PutItem(ctx, &dynamodb.PutItemInput{
-		TableName: aws.String(r.TableName),
-		Item:      av2,
-	}); err != nil {
-		return fmt.Errorf("failed to put CITY->EVENT item: %w", err)
-	}
+    // EVENT#CITY → DATE ITEM
+    pk3 := "EVENT#" + show.EventID + "#CITY#" + city
+    sk3 := "DATE#" + showDateTime + "#VENUE#" + show.VenueID + "#SHOW#" + show.ID
 
-	pk3 := "EVENT#" + show.EventID + "#CITY#" + city
-	sk3 := "DATE#" + showDateTime + "#VENUE#" + show.VenueID + "#SHOW#" + show.ID
+    eventDateItem := map[string]any{
+        "pk":         pk3,
+        "sk":         sk3,
+        "is_blocked": show.IsBlocked,
+        "price":      show.Price,
+        "expires_at": expires_at,
+    }
+    avEventDate, _ := attributevalue.MarshalMap(eventDateItem)
 
-	eventDateItem := map[string]any{
-		"pk":         pk3,
-		"sk":         sk3,
-		"is_blocked": show.IsBlocked,
-		"price":      show.Price,
-		"expires_at": expires_at,
-	}
+    // HOST → EVENT ITEM
+    hostItem := map[string]any{
+        "pk":         "HOST#" + show.HostID,
+        "sk":         "EVENT#" + show.EventID,
+        "expires_at": expires_at,
+    }
+    avHost, _ := attributevalue.MarshalMap(hostItem)
 
-	av3, err := attributevalue.MarshalMap(eventDateItem)
-	if err != nil {
-		return fmt.Errorf("failed to marshal event-date item: %w", err)
-	}
-	if _, err := r.db.PutItem(ctx, &dynamodb.PutItemInput{
-		TableName: aws.String(r.TableName),
-		Item:      av3,
-	}); err != nil {
-		return fmt.Errorf("failed to put EVENT#CITY->DATE item: %w", err)
-	}
+    // ---------- TRANSACTION WRITE ----------
+    _, err = r.db.TransactWriteItems(ctx, &dynamodb.TransactWriteItemsInput{
+        TransactItems: []types.TransactWriteItem{
+            {
+                Put: &types.Put{
+                    TableName: aws.String(r.TableName),
+                    Item:      avShow,
+                    // Optional: prevent overwriting
+                    ConditionExpression: aws.String("attribute_not_exists(pk)"),
+                },
+            },
+            {
+                Put: &types.Put{
+                    TableName: aws.String(r.TableName),
+                    Item:      avCityEvent,
+                },
+            },
+            {
+                Put: &types.Put{
+                    TableName: aws.String(r.TableName),
+                    Item:      avEventDate,
+                },
+            },
+            {
+                Put: &types.Put{
+                    TableName: aws.String(r.TableName),
+                    Item:      avHost,
+                },
+            },
+        },
+    })
 
-	pk4 := "HOST#" + show.HostID
-	sk4 := "EVENT#" + show.EventID
-	hostEventItem := map[string]any{
-		"pk": pk4,
-		"sk": sk4,
-		"expires_at":expires_at,
-	}
-	av4, err := attributevalue.MarshalMap(hostEventItem)
-	if err != nil {
-		return fmt.Errorf("failed to marshal host-event item: %w", err)
-	}
+    if err != nil {
+        return fmt.Errorf("transaction failed: %w", err)
+    }
 
-	if _, err := r.db.PutItem(ctx, &dynamodb.PutItemInput{
-		TableName: aws.String(r.TableName),
-		Item:      av4,
-	}); err != nil {
-		return fmt.Errorf("failed to put Host ->Event item: %w", err)
-	}
-
-	return nil
+    return nil
 }
+
 
 func (r *ShowRepositoryDDB) GetByID(ctx context.Context, id string) (*models.ShowDTO, error) {
 	if id == "" {

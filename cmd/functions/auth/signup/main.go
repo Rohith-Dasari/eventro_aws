@@ -76,9 +76,5 @@ func Signup(ctx context.Context, event events.APIGatewayProxyRequest) (events.AP
 			Body:       string(body),
 		}, nil
 	}
-	res := models.LoginResponse{
-		Token: token,
-	}
-
-	return customresponse.SendCustomResponse(200, res)
+	return customresponse.SendCustomResponse(200, "signup successful", token)
 }

@@ -39,7 +39,7 @@ func GetHostVenues(ctx context.Context, event events.APIGatewayProxyRequest) (ev
 	userRole = strings.ToLower(userRole)
 
 	if err != nil || (userRole != "host" && userRole != "admin") {
-		return customresponse.SendCustomResponse(
+		return customresponse.LambdaError(
 			http.StatusUnauthorized,
 			"user unauthorised",
 		)
@@ -49,11 +49,11 @@ func GetHostVenues(ctx context.Context, event events.APIGatewayProxyRequest) (ev
 
 	venues, err := venueService.GetHostVenues(ctx, hostEmail)
 	if err != nil {
-		return customresponse.SendCustomResponse(
+		return customresponse.LambdaError(
 			http.StatusInternalServerError,
 			"Failed to fetch venues: "+err.Error(),
 		)
 	}
 
-	return customresponse.SendCustomResponse(http.StatusOK, venues)
+	return customresponse.SendCustomResponse(http.StatusOK, "success", venues)
 }

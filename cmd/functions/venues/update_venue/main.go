@@ -41,12 +41,12 @@ func UpdateVenue(ctx context.Context, event events.APIGatewayProxyRequest) (even
 
 	venueID := event.PathParameters["venueID"]
 	if venueID == "" {
-		return customresponse.SendCustomResponse(400, "invalid request")
+		return customresponse.LambdaError(400, "invalid request")
 	}
 
 	userID, err := authenticationmiddleware.GetUserEmail(ctx)
 	if err != nil || userID == "" {
-		return customresponse.SendCustomResponse(403, "not authorised")
+		return customresponse.LambdaError(403, "not authorised")
 	}
 	userRole, err := authenticationmiddleware.GetUserRole(ctx)
 	if err != nil {
@@ -59,12 +59,12 @@ func UpdateVenue(ctx context.Context, event events.APIGatewayProxyRequest) (even
 	var req UpdateVenueRequest
 
 	if err := json.Unmarshal([]byte(event.Body), &req); err != nil {
-		return customresponse.SendCustomResponse(400, "invalid request body")
+		return customresponse.LambdaError(400, "invalid request body")
 	}
 
 	err = venueService.UpdateVenue(ctx, venueID, userID, userRole, req.IsBlocked)
 	if err != nil {
 		return customresponse.LambdaError(http.StatusInternalServerError, err.Error())
 	}
-	return customresponse.SendCustomResponse(http.StatusOK, "successfully moderated")
+	return customresponse.SendCustomResponse(http.StatusOK, "successfully moderated", nil)
 }

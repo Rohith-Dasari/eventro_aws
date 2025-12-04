@@ -49,8 +49,5 @@ func Login(ctx context.Context, event events.APIGatewayProxyRequest) (events.API
 		return customresponse.LambdaError(500, "failed to generate token")
 	}
 
-	res := models.LoginResponse{
-		Token: token,
-	}
-	return customresponse.SendCustomResponse(200, res)
+	return customresponse.SendCustomResponse(200, "login sucessful", token)
 }

@@ -45,20 +45,20 @@ func CreateBooking(ctx context.Context, event events.APIGatewayProxyRequest) (ev
 
 	role, err := authenticationmiddleware.GetUserRole(ctx)
 	if err != nil || (strings.ToLower(role) != "customer" && strings.ToLower(role) != "admin") {
-		return customresponse.SendCustomResponse(http.StatusForbidden, "only customers or admin for customers make booking")
+		return customresponse.LambdaError(http.StatusForbidden, "only customers or admin for customers make booking")
 	}
 	authUserID, err := authenticationmiddleware.GetUserEmail(ctx)
 	if err != nil || authUserID == "" {
-		return customresponse.SendCustomResponse(401, err.Error())
+		return customresponse.LambdaError(401, err.Error())
 	}
 
 	var req CreateBookingRequest
 	if err := json.Unmarshal([]byte(event.Body), &req); err != nil {
-		return customresponse.SendCustomResponse(400, "invalid request body")
+		return customresponse.LambdaError(400, "invalid request body")
 	}
 
 	if req.ShowID == "" || len(req.Seats) == 0 {
-		return customresponse.SendCustomResponse(400, "invalid request")
+		return customresponse.LambdaError(400, "invalid request")
 	}
 	userID := authUserID
 	if strings.ToLower(role) == "admin" && req.UserID != "" {
@@ -70,6 +70,6 @@ func CreateBooking(ctx context.Context, event events.APIGatewayProxyRequest) (ev
 		return customresponse.LambdaError(http.StatusBadRequest, err.Error())
 	}
 
-	return customresponse.SendCustomResponse(http.StatusOK, booking)
+	return customresponse.SendCustomResponse(http.StatusOK, "successfully created booking", booking)
 
 }

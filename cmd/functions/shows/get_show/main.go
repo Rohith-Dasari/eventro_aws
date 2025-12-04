@@ -42,5 +42,5 @@ func GetShowByID(ctx context.Context, event events.APIGatewayProxyRequest) (even
 	if err != nil {
 		return customresponse.LambdaError(http.StatusInternalServerError, err.Error())
 	}
-	return customresponse.SendCustomResponse(http.StatusOK, show)
+	return customresponse.SendCustomResponse(http.StatusOK, "successfully retrieved", show)
 }

@@ -39,7 +39,7 @@ func BrowseArtists(ctx context.Context, event events.APIGatewayProxyRequest) (ev
 			return customresponse.LambdaError(http.StatusInternalServerError, err.Error())
 
 		}
-		return customresponse.SendCustomResponse(http.StatusOK, artist)
+		return customresponse.SendCustomResponse(http.StatusOK, "successfully retrieved", artist)
 	} else {
 		return customresponse.LambdaError(http.StatusBadRequest, "missing artistID")
 	}

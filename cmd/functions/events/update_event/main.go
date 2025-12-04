@@ -58,8 +58,5 @@ func UpdateEvent(ctx context.Context, event events.APIGatewayProxyRequest) (even
 		return customresponse.LambdaError(500, "internal server error: "+err.Error())
 	}
 
-	return events.APIGatewayProxyResponse{
-		StatusCode: 200,
-		Body:       "successfully moderated event",
-	}, nil
+	return customresponse.SendCustomResponse(200, "successful moderation", updateData)
 }

@@ -47,7 +47,7 @@ func UpdateShow(ctx context.Context, event events.APIGatewayProxyRequest) (event
 
 	var req UpdateShowRequest
 	if err := json.Unmarshal([]byte(event.Body), &req); err != nil {
-		return customresponse.SendCustomResponse(http.StatusBadRequest, "invalid request body")
+		return customresponse.LambdaError(http.StatusBadRequest, "invalid request body")
 	}
 
 	err = showService.UpdateShow(ctx, showID, userID, req.IsBlocked)
@@ -55,5 +55,5 @@ func UpdateShow(ctx context.Context, event events.APIGatewayProxyRequest) (event
 		return customresponse.LambdaError(http.StatusInternalServerError, "Failed to update show: "+err.Error())
 	}
 
-	return customresponse.SendCustomResponse(http.StatusOK, "successfully updated")
+	return customresponse.SendCustomResponse(http.StatusOK, "successfully updated", nil)
 }

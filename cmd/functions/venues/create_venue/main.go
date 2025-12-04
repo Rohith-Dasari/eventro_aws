@@ -44,10 +44,10 @@ func CreateVenue(ctx context.Context, event events.APIGatewayProxyRequest) (even
 
 	role, err := authenticationmiddleware.GetUserRole(ctx)
 	if err != nil {
-		return customresponse.SendCustomResponse(http.StatusForbidden, "unable to get user role")
+		return customresponse.LambdaError(http.StatusForbidden, "unable to get user role")
 	}
 	if strings.ToLower(role) != "host" {
-		return customresponse.SendCustomResponse(http.StatusForbidden, "only host can create venue")
+		return customresponse.LambdaError(http.StatusForbidden, "only host can create venue")
 	}
 	hostID, err := authenticationmiddleware.GetUserEmail(ctx)
 	if err != nil || hostID == "" {
@@ -56,7 +56,7 @@ func CreateVenue(ctx context.Context, event events.APIGatewayProxyRequest) (even
 
 	var req CreateVenueRequest
 	if err := json.Unmarshal([]byte(event.Body), &req); err != nil {
-		return customresponse.SendCustomResponse(400, "invalid request body")
+		return customresponse.LambdaError(400, "invalid request body")
 	}
 
 	venue, err := venueService.CreateVenue(
@@ -68,8 +68,8 @@ func CreateVenue(ctx context.Context, event events.APIGatewayProxyRequest) (even
 		req.IsSeatLayoutRequired,
 	)
 	if err != nil {
-		return customresponse.SendCustomResponse(500, err.Error())
+		return customresponse.LambdaError(500, err.Error())
 	}
 
-	return customresponse.SendCustomResponse(http.StatusCreated, venue)
+	return customresponse.SendCustomResponse(http.StatusCreated, "created venue successfully", venue)
 }

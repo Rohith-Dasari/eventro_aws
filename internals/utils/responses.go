@@ -9,12 +9,15 @@ import (
 type CustomResponse struct {
 	Message    string `json:"message"`
 	StatusCode int    `json:"status_code"`
+	Data       any    `json:"data,omitempty"`
 }
 
-func SendCustomResponse(statusCode int, data any) (events.APIGatewayProxyResponse, error) {
-	body, _ := json.Marshal(data)
+func SendCustomResponse(statusCode int, message string, data any) (events.APIGatewayProxyResponse, error) {
+	cr := CustomResponse{StatusCode: statusCode, Message: message, Data: data}
+	body, _ := json.Marshal(cr)
+
 	return events.APIGatewayProxyResponse{
-		StatusCode: 200,
+		StatusCode: statusCode,
 		Body:       string(body),
 		Headers: map[string]string{
 			"Content-Type": "application/json",
@@ -23,18 +26,16 @@ func SendCustomResponse(statusCode int, data any) (events.APIGatewayProxyRespons
 
 }
 
-func LambdaError(code int, msg string) (events.APIGatewayProxyResponse, error) {
-	body, err := json.Marshal(map[string]string{
-		"message": msg,
-	})
-	if err != nil {
-		return events.APIGatewayProxyResponse{
-			StatusCode: 500,
-			Body:       "couldn't marshal response",
-		}, err
-	}
+func LambdaError(statusCode int, message string) (events.APIGatewayProxyResponse, error) {
+	cr := CustomResponse{StatusCode: statusCode, Message: message}
+	body, _ := json.Marshal(cr)
+
 	return events.APIGatewayProxyResponse{
-		StatusCode: code,
+		StatusCode: statusCode,
 		Body:       string(body),
+		Headers: map[string]string{
+			"Content-Type": "application/json",
+		},
 	}, nil
+
 }

@@ -54,7 +54,7 @@ func CreateArtist(ctx context.Context, event events.APIGatewayProxyRequest) (eve
 
 	var req CreateArtistRequest
 	if err := json.Unmarshal([]byte(event.Body), &req); err != nil {
-		return customresponse.SendCustomResponse(http.StatusBadRequest, "invalid request body")
+		return customresponse.LambdaError(http.StatusBadRequest, "invalid request body")
 	}
 
 	if req.Name == "" {
@@ -66,5 +66,5 @@ func CreateArtist(ctx context.Context, event events.APIGatewayProxyRequest) (eve
 		return customresponse.LambdaError(http.StatusBadRequest, err.Error())
 	}
 
-	return customresponse.SendCustomResponse(http.StatusOK, "successfully created artist")
+	return customresponse.SendCustomResponse(http.StatusOK, "successfully created artist", nil)
 }

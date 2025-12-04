@@ -50,8 +50,8 @@ func GetBookingsOfUser(ctx context.Context, event events.APIGatewayProxyRequest)
 
 	bookings, err := bookingService.BrowseBookings(ctx, authUserID)
 	if err != nil {
-		return customresponse.SendCustomResponse(500, "failed to fetch bookings")
+		return customresponse.LambdaError(500, "failed to fetch bookings: "+err.Error())
 	}
 
-	return customresponse.SendCustomResponse(http.StatusOK, bookings)
+	return customresponse.SendCustomResponse(http.StatusOK, "successfully retrieved bookings of user", bookings)
 }

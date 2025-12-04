@@ -59,7 +59,7 @@ func CreateShow(ctx context.Context, event events.APIGatewayProxyRequest) (event
 
 	var req CreateShowRequest
 	if err := json.Unmarshal([]byte(event.Body), &req); err != nil {
-		return customresponse.SendCustomResponse(http.StatusBadRequest, "invalid request body")
+		return customresponse.LambdaError(http.StatusBadRequest, "invalid request body")
 
 	}
 
@@ -81,5 +81,5 @@ func CreateShow(ctx context.Context, event events.APIGatewayProxyRequest) (event
 		return customresponse.LambdaError(http.StatusInternalServerError, err.Error())
 	}
 
-	return customresponse.SendCustomResponse(http.StatusOK, "successfully created")
+	return customresponse.SendCustomResponse(http.StatusOK, "successfully created", nil)
 }

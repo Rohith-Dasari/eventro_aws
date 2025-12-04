@@ -37,7 +37,7 @@ func BrowseVenues(ctx context.Context, event events.APIGatewayProxyRequest) (eve
 	_, err := authenticationmiddleware.GetUserRole(ctx)
 
 	if err != nil {
-		return customresponse.SendCustomResponse(
+		return customresponse.LambdaError(
 			http.StatusUnauthorized,
 			"user not logged in",
 		)
@@ -45,11 +45,10 @@ func BrowseVenues(ctx context.Context, event events.APIGatewayProxyRequest) (eve
 
 	venue, err := venueService.GetVenueByID(ctx, venueID)
 	if err != nil {
-		return customresponse.SendCustomResponse(
-			http.StatusInternalServerError,
-			"Failed to fetch venues: "+err.Error(),
-		)
+
+		return customresponse.LambdaError(http.StatusInternalServerError,
+			"Failed to fetch venues: "+err.Error())
 	}
 
-	return customresponse.SendCustomResponse(http.StatusOK, venue)
+	return customresponse.SendCustomResponse(http.StatusOK, "successfuly retrieved", venue)
 }
