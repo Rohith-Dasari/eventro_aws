@@ -5,7 +5,6 @@ import (
 	"errors"
 	"eventro_aws/internals/models"
 	userrepository "eventro_aws/internals/repository/user_repository"
-	"fmt"
 	"net/mail"
 	"regexp"
 
@@ -25,7 +24,6 @@ func NewAuthService(userRepo userrepository.UserRepositoryI) *AuthService {
 
 func (a *AuthService) ValidateLogin(ctx context.Context, email, password string) (models.User, error) {
 	user, err := a.UserRepo.GetByEmail(email)
-	fmt.Println(user)
 	if err != nil {
 		return models.User{}, err
 	}
@@ -33,7 +31,6 @@ func (a *AuthService) ValidateLogin(ctx context.Context, email, password string)
 		return models.User{}, errors.New("user account is blocked, please contact admin")
 	}
 
-	// Compare entered password with stored bcrypt hash
 	if err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(password)); err != nil {
 		return models.User{}, errors.New("invalid email or password")
 	}
@@ -69,7 +66,6 @@ func (a *AuthService) IsValidPassword(password string) bool {
 }
 
 func (a *AuthService) Signup(ctx context.Context, username, email, phoneNumber, password string) (models.User, error) {
-	//get by email and check if already exist
 	if !a.IsValidEmail(email) {
 		return models.User{}, errors.New("invalid email format")
 	}

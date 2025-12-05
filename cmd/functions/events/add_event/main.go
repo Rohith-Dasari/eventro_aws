@@ -68,7 +68,3 @@ func CreateEvent(ctx context.Context, event events.APIGatewayProxyRequest) (even
 
 }
 
-// type body struct {
-// 	statusCode int
-// 	data       any
-// }

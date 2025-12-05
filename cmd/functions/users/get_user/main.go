@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"encoding/json"
 	"eventro_aws/db"
 	authenticationmiddleware "eventro_aws/internals/middleware/authentication_middleware"
 	corsmiddleware "eventro_aws/internals/middleware/cors_middleware"
@@ -34,18 +33,9 @@ func main() {
 func GetUserByID(ctx context.Context, event events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
 	emailID := event.PathParameters["emailID"]
 
-	resEvent, err := userService.GetUserByMailID(ctx, emailID)
+	resUser, err := userService.GetUserByMailID(ctx, emailID)
 	if err != nil {
 		return customresponse.LambdaError(500, "internal server error: "+err.Error())
 	}
-
-	body, err := json.Marshal(resEvent)
-	if err != nil {
-		return customresponse.LambdaError(500, "failed to marshal events")
-	}
-
-	return events.APIGatewayProxyResponse{
-		StatusCode: 200,
-		Body:       string(body),
-	}, nil
+	return customresponse.SendCustomResponse(200, "successfully retrieved user", resUser)
 }

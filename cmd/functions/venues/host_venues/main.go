@@ -34,6 +34,9 @@ func main() {
 
 func GetHostVenues(ctx context.Context, event events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
 	hostID := event.PathParameters["hostId"]
+	if hostID == "" {
+		return customresponse.LambdaError(http.StatusBadRequest, "missing hostID")
+	}
 
 	userRole, err := authenticationmiddleware.GetUserRole(ctx)
 	userRole = strings.ToLower(userRole)
@@ -44,7 +47,6 @@ func GetHostVenues(ctx context.Context, event events.APIGatewayProxyRequest) (ev
 			"user unauthorised",
 		)
 	}
-	fmt.Println("hostID: " + hostID)
 	hostEmail, _ := authenticationmiddleware.GetUserEmail(ctx)
 
 	venues, err := venueService.GetHostVenues(ctx, hostEmail)

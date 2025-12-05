@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"eventro_aws/internals/models"
-	"fmt"
 	"log"
 	"strings"
 
@@ -48,7 +47,6 @@ func (ur UserRepositoryDDB) Create(user *models.User) error {
 
 	item["pk"] = pk
 	item[newAttributeKey] = newAttributeValue
-	fmt.Println(item)
 	if err != nil {
 		return err
 	}
@@ -95,26 +93,4 @@ func (ur UserRepositoryDDB) GetByEmail(email string) (*models.User, error) {
 	user.Email = strings.TrimPrefix(user.Email, "USER#")
 
 	return &user, nil
-}
-
-func (ur UserRepositoryDDB) GetByID(id string) (*models.User, error) {
-	return &models.User{}, nil
-}
-
-func (ur UserRepositoryDDB) Update(user *models.User) error {
-	return nil
-}
-
-func (ur UserRepositoryDDB) Delete(id string) error {
-	return nil
-
-}
-
-func (ur UserRepositoryDDB) GetBlockedUsers() ([]models.User, error) {
-	return []models.User{}, nil
-
-}
-
-func (ur UserRepositoryDDB) GetUsers() ([]models.User, error) {
-	return []models.User{}, nil
 }

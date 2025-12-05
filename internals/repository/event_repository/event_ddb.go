@@ -287,7 +287,6 @@ func (er *EventRepositoryDDB) BatchGetEvents(ctx context.Context, eventIDs []str
 				return nil, fmt.Errorf("batch get error: %w", err)
 			}
 
-			// Unmarshal found items
 			for _, item := range resp.Responses[er.TableName] {
 				var eddb EventDDB
 				if err := attributevalue.UnmarshalMap(item, &eddb); err != nil {

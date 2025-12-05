@@ -82,7 +82,6 @@ func (s *VenueService) GetHostVenues(ctx context.Context, hostID string) ([]mode
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch venues: %w", err)
 	}
-	fmt.Println("venues:", venues)
 	return venues, nil
 
 }

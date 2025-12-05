@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"encoding/json"
 	"eventro_aws/db"
 	authenticationmiddleware "eventro_aws/internals/middleware/authentication_middleware"
 	corsmiddleware "eventro_aws/internals/middleware/cors_middleware"
@@ -40,10 +39,5 @@ func GetEventByID(ctx context.Context, event events.APIGatewayProxyRequest) (eve
 		return customresponse.LambdaError(500, "internal server error: "+err.Error())
 	}
 
-	body, err := json.Marshal(resEvent)
-	if err != nil {
-		return customresponse.LambdaError(500, "failed to marshal events")
-	}
-
-	return customresponse.SendCustomResponse(http.StatusOK, "successfully retrived event", body)
+	return customresponse.SendCustomResponse(http.StatusOK, "successfully retrieved event", resEvent)
 }

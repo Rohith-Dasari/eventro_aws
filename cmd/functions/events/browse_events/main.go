@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"encoding/json"
 	"eventro_aws/db"
 	authenticationmiddleware "eventro_aws/internals/middleware/authentication_middleware"
 	corsmiddleware "eventro_aws/internals/middleware/cors_middleware"
@@ -47,13 +46,5 @@ func BrowseEvents(ctx context.Context, event events.APIGatewayProxyRequest) (eve
 		return customresponse.LambdaError(500, "internal server error: "+err.Error())
 	}
 
-	body, err := json.Marshal(resEvents)
-	if err != nil {
-		return customresponse.LambdaError(500, "failed to marshal events")
-	}
-
-	return events.APIGatewayProxyResponse{
-		StatusCode: 200,
-		Body:       string(body),
-	}, nil
+	return customresponse.SendCustomResponse(200, "success", resEvents)
 }
